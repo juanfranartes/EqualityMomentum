@@ -1,0 +1,57 @@
+charts:
+  salario_base_efectivo:
+    data_columns:
+    - Salario base efectivo Total
+    marker: '{grafico_sb_efectivo}'
+    metodo: efectivos_sb
+    subtitulo: Análisis de igualdad retributiva - Salario base efectivamente percibido
+      (solo SB > 0)
+    title: Comparación Salario Base Efectivo Total por Género
+    type: donut
+  salario_base_equiparado:
+    data_columns:
+    - salario_base_equiparado
+    marker: '{grafico_sb_equiparado}'
+    metodo: equiparados_sb
+    subtitulo: Salario base normalizado a jornada completa y 12 meses (solo SB > 0)
+    title: Comparación Salario Base Equiparado por Género
+    type: donut
+  sb_complementos_efectivo:
+    data_columns:
+    - Salario base anual + complementos Total
+    marker: '{grafico_sb_comp_efectivo}'
+    metodo: efectivos_sb_complementos
+    subtitulo: Incluye salario base y complementos salariales efectivamente percibidos
+      (todas las personas)
+    title: Salario Base + Complementos Salariales Efectivos por Género
+    type: donut
+  sb_complementos_equiparado:
+    data_columns:
+    - sb_mas_comp_salariales_equiparado
+    marker: '{grafico_sb_comp_equiparado}'
+    metodo: equiparados_sb_complementos
+    subtitulo: SB + complementos salariales normalizados a jornada completa y 12 meses
+      (todas las personas)
+    title: Salario Base + Complementos Salariales Equiparados por Género
+    type: donut
+  sb_total_efectivo:
+    data_columns:
+    - Salario base anual + complementos + Extrasalariales Total
+    marker: '{grafico_sb_total_efectivo}'
+    metodo: efectivos_sb_complementos
+    subtitulo: Retribución total efectiva incluyendo todos los conceptos (todas las
+      personas)
+    title: SB + Complementos + Extrasalariales Efectivos por Género
+    type: donut
+  sb_total_equiparado:
+    data_columns:
+    - sb_mas_comp_total_equiparado
+    marker: '{grafico_sb_total_equiparado}'
+    metodo: equiparados_sb_complementos
+    subtitulo: 'Retribución total equiparada: SB + complementos salariales y extrasalariales
+      (todas las personas)'
+    title: SB + Complementos + Extrasalariales Equiparados por Género
+    type: donut
+excel_file: ''
+output_file: informe_registro_retributivo_20250903_0124.docx
+template_word: plantilla_informe.docx
