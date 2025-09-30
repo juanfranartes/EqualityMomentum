@@ -53,5 +53,5 @@ charts:
     title: SB + Complementos + Extrasalariales Equiparados por Género
     type: donut
 excel_file: ''
-output_file: informe_registro_retributivo_20250903_0124.docx
+output_file: ../05_INFORMES/registro_retributivo_20250905_004913_final.docx
 template_word: plantilla_informe.docx

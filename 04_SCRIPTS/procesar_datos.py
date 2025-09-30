@@ -673,6 +673,9 @@ class ProcesadorRegistroRetributivo:
 
 def main():
     """Función principal del programa"""
+    # Detectar si se ejecuta desde workflow
+    ejecutado_desde_workflow = "--workflow" in sys.argv
+    
     try:
         # Crear instancia del procesador
         procesador = ProcesadorRegistroRetributivo()
@@ -680,21 +683,24 @@ def main():
         # Ejecutar procesamiento
         exito = procesador.ejecutar_procesamiento()
         
-        # Pausa para que el usuario pueda leer el mensaje
-        input("\nPresiona Enter para cerrar...")
+        # Solo pausar si se ejecuta directamente (no desde workflow)
+        if not ejecutado_desde_workflow:
+            input("\nPresiona Enter para cerrar...")
         
         # Código de salida
         sys.exit(0 if exito else 1)
         
     except KeyboardInterrupt:
         print("\n\nProcesamiento interrumpido por el usuario.")
-        input("Presiona Enter para cerrar...")
+        if not ejecutado_desde_workflow:
+            input("Presiona Enter para cerrar...")
         sys.exit(1)
         
     except Exception as e:
         print(f"\nError crítico no manejado: {str(e)}")
         print("\nContacte con soporte técnico.")
-        input("Presiona Enter para cerrar...")
+        if not ejecutado_desde_workflow:
+            input("Presiona Enter para cerrar...")
         sys.exit(1)
 
 
