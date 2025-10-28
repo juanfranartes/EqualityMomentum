@@ -1,0 +1,7 @@
+EqualityMomentum v1.0.1
+==================================================
+
+Fecha: 2025-10-28
+
+Cambios:
+  1. interfaces
