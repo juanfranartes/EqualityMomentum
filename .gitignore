@@ -22,9 +22,6 @@ wheels/
 
 # Entorno virtual
 EM/
-venv/
-ENV/
-env/
 
 # PyInstaller
 *.manifest
@@ -94,4 +91,11 @@ htmlcov/
 .dmypy.json
 dmypy.json
 
+# Streamlit
+.streamlit/secrets.toml
+
+# Archivos temporales
 nul
+*.tmp
+temp_*.png
+temp_*.docx

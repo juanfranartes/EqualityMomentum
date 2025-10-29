@@ -1,18 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(\"C:\\Users\\juanf\\AppData\\Local\\Programs\\Python\\Python312\\python.exe\" validar_meses_trabajados.py)",
-      "Bash(\"C:\\Users\\juanf\\AppData\\Local\\Programs\\Python\\Python312\\python.exe\" -c \"import pandas as pd; import glob; archivo = max(glob.glob(''../02_RESULTADOS/REPORTE_TRIODOS_*.xlsx'')); df = pd.read_excel(archivo); print(f''Archivo: {archivo}\\n''); print(''PRIMERAS 30 COLUMNAS:''); print(''\\n''.join([f''{i+1}. {col}'' for i, col in enumerate(df.columns[:30])])); print(''\\n...''); comp_efectivos = [i for i, col in enumerate(df.columns) if (col.startswith((''A'', ''PA'', ''PC'')) and ''_equiparado'' not in col and col != ''A154-Salario base de nivel*CT'')]; comp_equiparados = [i for i, col in enumerate(df.columns) if ''_equiparado'' in col and col.startswith((''A'', ''PA'', ''PC''))]; print(f''\\nComplementos EFECTIVOS: columnas {min(comp_efectivos)+1} a {max(comp_efectivos)+1} ({len(comp_efectivos)} total)''); print(f''Complementos EQUIPARADOS: columnas {min(comp_equiparados)+1} a {max(comp_equiparados)+1} ({len(comp_equiparados)} total)'')\")",
-      "Bash(\"C:\\Users\\juanf\\AppData\\Local\\Programs\\Python\\Python312\\python.exe\" verificar_orden_columnas.py)",
-      "Bash(\"C:\\Users\\juanf\\AppData\\Local\\Programs\\Python\\Python312\\python.exe\" -c:*)",
-      "Bash(tree:*)",
-      "Bash(dir:*)",
-      "Bash(python -m pip list:*)",
-      "Bash(python:*)",
-      "Bash(\"C:\\Users\\juanf\\AppData\\Local\\Programs\\Python\\Python312\\python.exe\" \"C:\\Users\\juanf\\Documentos\\GitHub\\EqualityMomentum\\04_SCRIPTS\\interfaz_procesador_v2.py\")",
-      "Bash(\"C:\\Users\\juanf\\AppData\\Local\\Programs\\Python\\Python312\\python.exe\" \"C:\\Users\\juanf\\Documentos\\GitHub\\EqualityMomentum\\04_SCRIPTS\\interfaz_generador_v2.py\")",
-      "Bash(\"C:\\Users\\juanf\\AppData\\Local\\Programs\\Python\\Python312\\python.exe\" -c \"import sys; print(''Python ejecutable:'', sys.executable); import tkinter; print(''Tkinter disponible''); import ctypes; print(''Ctypes disponible'')\")",
-      "Bash(\"C:\\Users\\juanf\\AppData\\Local\\Programs\\Python\\Python312\\python.exe\" \"C:\\Users\\juanf\\Documentos\\GitHub\\EqualityMomentum\\04_SCRIPTS\\app_principal.py\")"
+      "Bash(mkdir:*)"
     ],
     "deny": [],
     "ask": []

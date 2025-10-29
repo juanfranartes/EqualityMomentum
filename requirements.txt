@@ -1,0 +1,26 @@
+# EqualityMomentum Web - Requirements
+# Aplicación web para procesamiento de registros retributivos
+# Versión sin almacenamiento de datos - Procesamiento en memoria
+
+# Framework web
+streamlit>=1.28.0
+
+# Análisis de datos
+pandas>=2.0.0
+numpy>=1.24.0
+openpyxl>=3.1.0
+
+# Generación de documentos Word
+python-docx>=0.8.11
+
+# Visualización de datos (gráficos)
+matplotlib>=3.7.0
+seaborn>=0.12.0
+Pillow>=10.0.0
+
+# Utilidades de fecha y tiempo
+python-dateutil>=2.8.0
+
+# Seguridad - Desencriptación de archivos Excel protegidos (Triodos)
+msoffcrypto-tool>=5.4.0
+cryptography>=41.0.0

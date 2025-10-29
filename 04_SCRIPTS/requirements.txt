@@ -1,11 +1,27 @@
+# EqualityMomentum - Requirements
+# Aplicación local para procesamiento y generación de informes de registros retributivos
+
+# Análisis de datos
 pandas>=2.0.0
-numpy>=1.21.0
-openpyxl>=3.0.0
-matplotlib>=3.5.0
-seaborn>=0.11.0
+numpy>=1.24.0
+openpyxl>=3.1.0
+
+# Generación de documentos Word
 python-docx>=0.8.11
-PyYAML>=6.0
-Pillow>=9.0.0
-pyinstaller>=5.0.0
-msoffcrypto-tool>=5.4.0
+
+# Visualización de datos
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Interfaz gráfica (tkinter viene incluido con Python)
+Pillow>=10.0.0
+
+# Utilidades
+requests>=2.31.0
 python-dateutil>=2.8.0
+
+# Seguridad y archivos
+msoffcrypto-tool>=5.4.0
+
+# Empaquetado (solo para desarrollo)
+pyinstaller>=6.0.0
