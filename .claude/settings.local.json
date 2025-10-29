@@ -3,7 +3,8 @@
     "allow": [
       "Bash(\"C:\\Users\\juanf\\AppData\\Local\\Programs\\Python\\Python312\\python.exe\" -c:*)",
       "Bash(\"C:\\Users\\juanf\\AppData\\Local\\Programs\\Python\\Python312\\python.exe\":*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []
