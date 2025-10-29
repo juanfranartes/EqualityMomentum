@@ -137,7 +137,7 @@ def main():
     # Contenido principal
     st.header("1️⃣ Configuración")
 
-    # Selector de tipo de archivo
+    # Selector de tipo de archivo y opciones
     col1, col2 = st.columns(2)
     with col1:
         tipo_archivo = st.selectbox(
@@ -147,12 +147,28 @@ def main():
         )
 
     with col2:
-        if tipo_archivo == "Triodos":
+        accion = st.selectbox(
+            "Acción a realizar:",
+            options=["Ambas", "Procesar Datos", "Generar Informe"],
+            help="Selecciona qué operación deseas realizar"
+        )
+
+    # Opciones adicionales
+    col1, col2 = st.columns(2)
+    with col1:
+        archivo_protegido = st.checkbox(
+            "¿El archivo tiene contraseña?",
+            value=(tipo_archivo == "Triodos"),
+            help="Marca esta casilla si el archivo Excel está protegido"
+        )
+
+    with col2:
+        if archivo_protegido:
             password = st.text_input(
                 "Contraseña del archivo:",
-                value="Triodos2025",
+                value="Triodos2025" if tipo_archivo == "Triodos" else "",
                 type="password",
-                help="Contraseña para desbloquear el archivo Excel de Triodos"
+                help="Contraseña para desbloquear el archivo Excel"
             )
         else:
             password = None
@@ -188,49 +204,82 @@ def main():
 
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            if st.button("🚀 Procesar Archivo", type="primary"):
-                with st.spinner("Procesando datos... Esto puede tardar unos segundos."):
+            # Cambiar el texto del botón según la acción
+            texto_boton = {
+                "Ambas": "🚀 Procesar y Generar Informe",
+                "Procesar Datos": "📊 Procesar Datos",
+                "Generar Informe": "📄 Generar Informe"
+            }
+
+            if st.button(texto_boton[accion], type="primary"):
+                with st.spinner(f"{accion}... Esto puede tardar unos segundos."):
                     try:
                         # Leer archivo como bytes
                         archivo_bytes = archivo_subido.read()
 
-                        # Crear procesador
-                        procesador = ProcesadorRegistroRetributivo()
+                        excel_procesado = None
+                        informe_word = None
 
-                        # Procesar según tipo
-                        if tipo_archivo == "Triodos":
-                            excel_procesado = procesador.procesar_excel_triodos(archivo_bytes, password=password)
-                        else:
-                            excel_procesado = procesador.procesar_excel_general(archivo_bytes)
+                        # PASO 1: Procesar datos (si corresponde)
+                        if accion in ["Ambas", "Procesar Datos"]:
+                            with st.spinner("📊 Procesando datos..."):
+                                procesador = ProcesadorRegistroRetributivo()
 
-                        # Generar informe Word
-                        generador = GeneradorInformes()
-                        excel_procesado.seek(0)  # Resetear puntero
-                        informe_word = generador.generar_informe_completo(excel_procesado)
+                                # Procesar según tipo y protección
+                                if tipo_archivo == "Triodos" or archivo_protegido:
+                                    excel_procesado = procesador.procesar_excel_triodos(
+                                        archivo_bytes,
+                                        password=password if password else "Triodos2025"
+                                    )
+                                else:
+                                    excel_procesado = procesador.procesar_excel_general(archivo_bytes)
+
+                                st.success("✅ Datos procesados correctamente")
+
+                        # PASO 2: Generar informe (si corresponde)
+                        if accion in ["Ambas", "Generar Informe"]:
+                            with st.spinner("📄 Generando informe Word..."):
+                                # Si no se procesaron los datos, usar el archivo original
+                                if excel_procesado is None:
+                                    excel_para_informe = io.BytesIO(archivo_bytes)
+                                else:
+                                    excel_procesado.seek(0)
+                                    excel_para_informe = excel_procesado
+
+                                generador = GeneradorInformes()
+                                informe_word = generador.generar_informe_completo(excel_para_informe)
+
+                                st.success("✅ Informe generado correctamente")
 
                         # Guardar en session_state
-                        excel_procesado.seek(0)  # Resetear otra vez
-                        st.session_state['archivo_procesado'] = excel_procesado
-                        st.session_state['informe_word'] = informe_word
+                        if excel_procesado:
+                            excel_procesado.seek(0)
+                            st.session_state['archivo_procesado'] = excel_procesado
+
+                        if informe_word:
+                            st.session_state['informe_word'] = informe_word
+
                         st.session_state['nombre_archivo'] = archivo_subido.name.replace('.xlsx', '').replace('.xls', '')
+                        st.session_state['accion_realizada'] = accion
 
-                        # Calcular estadísticas básicas
-                        import pandas as pd
-                        excel_procesado.seek(0)
-                        df = pd.read_excel(excel_procesado, sheet_name='DATOS_PROCESADOS')
-                        st.session_state['estadisticas'] = {
-                            'total_registros': len(df),
-                            'columnas': len(df.columns)
-                        }
+                        # Calcular estadísticas básicas (si se procesó)
+                        if excel_procesado:
+                            import pandas as pd
+                            excel_procesado.seek(0)
+                            df = pd.read_excel(excel_procesado, sheet_name='DATOS_PROCESADOS')
+                            st.session_state['estadisticas'] = {
+                                'total_registros': len(df),
+                                'columnas': len(df.columns)
+                            }
 
-                        st.success("✅ Procesamiento completado exitosamente!")
+                        st.success(f"✅ {accion} completado exitosamente!")
 
                     except Exception as e:
                         st.error(f"❌ Error durante el procesamiento: {str(e)}")
                         st.exception(e)
 
         # Mostrar resultados si existen
-        if 'archivo_procesado' in st.session_state:
+        if 'archivo_procesado' in st.session_state or 'informe_word' in st.session_state:
             st.markdown("---")
             st.header("4️⃣ Resultados")
 
@@ -247,38 +296,51 @@ def main():
                 """.format(stats['total_registros'], stats['columnas']), unsafe_allow_html=True)
 
             # Botones de descarga
-            col1, col2 = st.columns(2)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-            with col1:
-                st.subheader("📊 Excel Procesado")
-                st.markdown("Datos con columnas equiparadas")
+            # Determinar cuántas columnas necesitamos
+            tiene_excel = 'archivo_procesado' in st.session_state
+            tiene_word = 'informe_word' in st.session_state
 
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                nombre_excel = f"REPORTE_{st.session_state['nombre_archivo']}_{timestamp}.xlsx"
+            if tiene_excel and tiene_word:
+                col1, col2 = st.columns(2)
+            elif tiene_excel or tiene_word:
+                col1 = st.container()
+                col2 = None
 
-                st.session_state['archivo_procesado'].seek(0)
-                st.download_button(
-                    label="⬇️ Descargar Excel",
-                    data=st.session_state['archivo_procesado'],
-                    file_name=nombre_excel,
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True
-                )
+            # Botón de descarga Excel
+            if tiene_excel:
+                with col1:
+                    st.subheader("📊 Excel Procesado")
+                    st.markdown("Datos con columnas equiparadas")
 
-            with col2:
-                st.subheader("📄 Informe Word")
-                st.markdown("Informe completo con gráficos")
+                    nombre_excel = f"REPORTE_{st.session_state['nombre_archivo']}_{timestamp}.xlsx"
 
-                nombre_word = f"INFORME_{st.session_state['nombre_archivo']}_{timestamp}.docx"
+                    st.session_state['archivo_procesado'].seek(0)
+                    st.download_button(
+                        label="⬇️ Descargar Excel",
+                        data=st.session_state['archivo_procesado'],
+                        file_name=nombre_excel,
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True
+                    )
 
-                st.session_state['informe_word'].seek(0)
-                st.download_button(
-                    label="⬇️ Descargar Informe",
-                    data=st.session_state['informe_word'],
-                    file_name=nombre_word,
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                    use_container_width=True
-                )
+            # Botón de descarga Word
+            if tiene_word:
+                with (col2 if col2 else col1):
+                    st.subheader("📄 Informe Word")
+                    st.markdown("Informe completo con gráficos")
+
+                    nombre_word = f"INFORME_{st.session_state['nombre_archivo']}_{timestamp}.docx"
+
+                    st.session_state['informe_word'].seek(0)
+                    st.download_button(
+                        label="⬇️ Descargar Informe",
+                        data=st.session_state['informe_word'],
+                        file_name=nombre_word,
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        use_container_width=True
+                    )
 
             st.markdown("""
                 <div class="warning-box">
