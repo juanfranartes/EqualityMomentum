@@ -327,6 +327,8 @@ class ProcesadorTriodos:
             try:
                 df_comp = pd.read_excel(archivo_decrypted, sheet_name=nombre_hoja, engine='openpyxl')
                 archivo_decrypted.seek(0)
+                # Limpiar nombres de columnas
+                df_comp.columns = df_comp.columns.str.strip()
                 log(f"Procesando {nombre_hoja}...", 'PROCESO')
 
                 for _, row in df_comp.iterrows():
@@ -442,6 +444,10 @@ class ProcesadorTriodos:
             df = pd.read_excel(archivo_decrypted, sheet_name="BASE GENERAL", engine='openpyxl')
             archivo_decrypted.seek(0)
             log(f"Datos cargados: {df.shape[0]} filas x {df.shape[1]} columnas", 'OK')
+            
+            # IMPORTANTE: Limpiar nombres de columnas (eliminar espacios al inicio/final)
+            df.columns = df.columns.str.strip()
+            log("Nombres de columnas limpiados (espacios eliminados)", 'OK')
 
             # Cargar configuración de complementos
             self.cargar_configuracion_complementos(archivo_decrypted)
@@ -809,6 +815,9 @@ class ProcesadorTriodos:
         log(f"Creando reporte: {nombre_resultado}", 'PROCESO')
 
         try:
+            # Asegurar que las columnas estén limpias antes de procesar
+            df_procesado.columns = df_procesado.columns.str.strip()
+            
             # Eliminar columnas originales de Triodos que no deben estar en el reporte final
             columnas_eliminar = [
                 'Nº personal', 'Fecha inicio contr.', 'Fecha de salida', 'Fecha inicio sit.',
