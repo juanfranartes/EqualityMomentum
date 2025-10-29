@@ -97,11 +97,11 @@ COLS = {
     'sbce_equiparado': 'sb_mas_comp_total_equiparado',
 
     # Complementos Salariales
-    'comp_efectivo': 'Compltos Salariales efectivo Total ',
+    'comp_efectivo': 'Complementos Salariales efectivo Total ',
     'comp_equiparado': 'complementos_salariales_equiparados',
 
     # Complementos Extrasalariales
-    'extra_efectivo': 'Compltos Extrasalariales efectivo Total ',
+    'extra_efectivo': 'Complementos Extrasalariales efectivo Total ',
     'extra_equiparado': 'complementos_extrasalariales_equiparados',
 
     # Puntos
