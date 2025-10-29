@@ -1,6 +1,0 @@
-# System packages needed for Streamlit Cloud deployment
-# This file is usually empty for this app, but kept for reference
-
-# If matplotlib has issues, uncomment:
-# libgl1-mesa-glx
-# libglib2.0-0
