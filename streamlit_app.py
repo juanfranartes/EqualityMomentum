@@ -678,110 +678,110 @@ def main():
                                         if tmp_path.exists():
                                             tmp_path.unlink()
 
-                        # PASO 2: Generar informe (si corresponde)
-                        if accion in ["Ambas", "Generar Informe"]:
-                            with st.spinner("📄 Generando informe Word..."):
-                                # Determinar qué archivo usar para el informe
-                                archivo_para_informe = None
-                                
-                                if accion == "Ambas":
-                                    # Usar el archivo recién procesado
-                                    if excel_procesado is None:
-                                        raise Exception("Error: No se pudo procesar el archivo Excel")
-                                    
-                                    st.info("📋 Generando informe con datos recién procesados...")
-                                    # Guardar temporalmente el archivo procesado
-                                    with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx', mode='wb') as tmp_file:
-                                        excel_procesado.seek(0)
-                                        tmp_file.write(excel_procesado.read())
-                                        archivo_para_informe = Path(tmp_file.name)
-                                
-                                elif accion == "Generar Informe":
-                                    # Usar el archivo original subido (ya procesado previamente)
-                                    st.info("📋 Generando informe directamente del archivo subido...")
-                                    # Guardar temporalmente el archivo original
-                                    with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx', mode='wb') as tmp_file:
-                                        tmp_file.write(archivo_bytes)
-                                        archivo_para_informe = Path(tmp_file.name)
-                                
-                                try:
-                                    # Crear generador de informes
-                                    generador = GeneradorInformeOptimizado()
-                                    
-                                    # Cargar datos desde el archivo
+                            # PASO 2: Generar informe (si corresponde)
+                            if accion in ["Ambas", "Generar Informe"]:
+                                with st.spinner("📄 Generando informe Word..."):
+                                    # Determinar qué archivo usar para el informe
+                                    archivo_para_informe = None
+
+                                    if accion == "Ambas":
+                                        # Usar el archivo recién procesado
+                                        if excel_procesado is None:
+                                            raise Exception("Error: No se pudo procesar el archivo Excel")
+
+                                        st.info("📋 Generando informe con datos recién procesados...")
+                                        # Guardar temporalmente el archivo procesado
+                                        with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx', mode='wb') as tmp_file:
+                                            excel_procesado.seek(0)
+                                            tmp_file.write(excel_procesado.read())
+                                            archivo_para_informe = Path(tmp_file.name)
+
+                                    elif accion == "Generar Informe":
+                                        # Usar el archivo original subido (ya procesado previamente)
+                                        st.info("📋 Generando informe directamente del archivo subido...")
+                                        # Guardar temporalmente el archivo original
+                                        with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx', mode='wb') as tmp_file:
+                                            tmp_file.write(archivo_bytes)
+                                            archivo_para_informe = Path(tmp_file.name)
+
                                     try:
-                                        generador.df = pd.read_excel(archivo_para_informe)
-                                    except Exception as e:
-                                        raise Exception(f"Error al leer el archivo Excel: {str(e)}. Asegúrate de que el archivo tenga el formato correcto.")
-                                    
-                                    # Mapear valores de la columna Sexo
-                                    if 'Sexo' in generador.df.columns:
-                                        generador.df['Sexo'] = generador.df['Sexo'].map({
-                                            'Hombres': 'H',
-                                            'Mujeres': 'M'
-                                        }).fillna(generador.df['Sexo'])
-                                    
-                                    st.info(f"📊 Datos cargados: {len(generador.df)} registros")
-                                    
-                                    # Generar el informe (tipo CONSOLIDADO por defecto)
-                                    if generador.generar_informe('CONSOLIDADO'):
-                                        # Leer el archivo Word generado
-                                        carpeta_informes = Path(__file__).parent / "05_INFORMES"
-                                        
-                                        # Buscar el archivo más reciente
-                                        if carpeta_informes.exists():
-                                            archivos_word = list(carpeta_informes.glob('registro_retributivo_*.docx'))
-                                            if archivos_word:
-                                                archivo_word = max(archivos_word, key=lambda x: x.stat().st_mtime)
-                                                
-                                                # Cargar en memoria
-                                                with open(archivo_word, 'rb') as f:
-                                                    informe_word = io.BytesIO(f.read())
-                                                
-                                                # IMPORTANTE: Borrar archivo del disco inmediatamente
-                                                try:
-                                                    archivo_word.unlink()
-                                                    st.info("🔒 Informe temporal eliminado del servidor")
-                                                except Exception as e:
-                                                    st.warning(f"⚠️ No se pudo eliminar informe temporal: {e}")
-                                                
-                                                # Limpiar imágenes temporales de gráficos
-                                                try:
-                                                    for temp_file in generador.archivos_temp:
-                                                        if os.path.exists(temp_file):
-                                                            os.remove(temp_file)
-                                                except:
-                                                    pass
-                                                
-                                                st.success("✅ Informe generado correctamente")
+                                        # Crear generador de informes
+                                        generador = GeneradorInformeOptimizado()
+
+                                        # Cargar datos desde el archivo
+                                        try:
+                                            generador.df = pd.read_excel(archivo_para_informe)
+                                        except Exception as e:
+                                            raise Exception(f"Error al leer el archivo Excel: {str(e)}. Asegúrate de que el archivo tenga el formato correcto.")
+
+                                        # Mapear valores de la columna Sexo
+                                        if 'Sexo' in generador.df.columns:
+                                            generador.df['Sexo'] = generador.df['Sexo'].map({
+                                                'Hombres': 'H',
+                                                'Mujeres': 'M'
+                                            }).fillna(generador.df['Sexo'])
+
+                                        st.info(f"📊 Datos cargados: {len(generador.df)} registros")
+
+                                        # Generar el informe (tipo CONSOLIDADO por defecto)
+                                        if generador.generar_informe('CONSOLIDADO'):
+                                            # Leer el archivo Word generado
+                                            carpeta_informes = Path(__file__).parent / "05_INFORMES"
+
+                                            # Buscar el archivo más reciente
+                                            if carpeta_informes.exists():
+                                                archivos_word = list(carpeta_informes.glob('registro_retributivo_*.docx'))
+                                                if archivos_word:
+                                                    archivo_word = max(archivos_word, key=lambda x: x.stat().st_mtime)
+
+                                                    # Cargar en memoria
+                                                    with open(archivo_word, 'rb') as f:
+                                                        informe_word = io.BytesIO(f.read())
+
+                                                    # IMPORTANTE: Borrar archivo del disco inmediatamente
+                                                    try:
+                                                        archivo_word.unlink()
+                                                        st.info("🔒 Informe temporal eliminado del servidor")
+                                                    except Exception as e:
+                                                        st.warning(f"⚠️ No se pudo eliminar informe temporal: {e}")
+
+                                                    # Limpiar imágenes temporales de gráficos
+                                                    try:
+                                                        for temp_file in generador.archivos_temp:
+                                                            if os.path.exists(temp_file):
+                                                                os.remove(temp_file)
+                                                    except:
+                                                        pass
+
+                                                    st.success("✅ Informe generado correctamente")
+                                                else:
+                                                    raise Exception("No se encontró el archivo Word generado")
                                             else:
-                                                raise Exception("No se encontró el archivo Word generado")
+                                                raise Exception("No se pudo crear el informe")
                                         else:
-                                            raise Exception("No se pudo crear el informe")
-                                    else:
-                                        raise Exception("Error al generar el informe")
-                                
-                                finally:
-                                    # Limpiar archivo temporal
-                                    if archivo_para_informe and archivo_para_informe.exists():
-                                        archivo_para_informe.unlink()
+                                            raise Exception("Error al generar el informe")
 
-                        # Guardar en session_state
-                        if excel_procesado:
-                            excel_procesado.seek(0)
-                            st.session_state['archivo_procesado'] = excel_procesado
+                                    finally:
+                                        # Limpiar archivo temporal
+                                        if archivo_para_informe and archivo_para_informe.exists():
+                                            archivo_para_informe.unlink()
 
-                        if informe_word:
-                            st.session_state['informe_word'] = informe_word
+                            # Guardar en session_state
+                            if excel_procesado:
+                                excel_procesado.seek(0)
+                                st.session_state['archivo_procesado'] = excel_procesado
 
-                        st.session_state['nombre_archivo'] = archivo_subido.name.replace('.xlsx', '').replace('.xls', '')
-                        st.session_state['accion_realizada'] = accion
+                            if informe_word:
+                                st.session_state['informe_word'] = informe_word
 
-                        st.success(f"✅ {accion} completado exitosamente!")
+                            st.session_state['nombre_archivo'] = archivo_subido.name.replace('.xlsx', '').replace('.xls', '')
+                            st.session_state['accion_realizada'] = accion
 
-                    except Exception as e:
-                        st.error(f"❌ Error durante el procesamiento: {str(e)}")
-                        st.exception(e)
+                            st.success(f"✅ {accion} completado exitosamente!")
+
+                        except Exception as e:
+                            st.error(f"❌ Error durante el procesamiento: {str(e)}")
+                            st.exception(e)
 
         # Mostrar resultados si existen
         if 'archivo_procesado' in st.session_state or 'informe_word' in st.session_state:
