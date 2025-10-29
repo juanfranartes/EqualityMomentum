@@ -10,14 +10,19 @@ import io
 import sys
 from pathlib import Path
 from datetime import datetime
+import pandas as pd
+import tempfile
+import os
 
-# Agregar la ruta de 04_SCRIPTS al path para importar el generador optimizado
+# Agregar la ruta de 04_SCRIPTS al path para importar los módulos
 scripts_path = Path(__file__).parent / '04_SCRIPTS'
 if str(scripts_path) not in sys.path:
     sys.path.insert(0, str(scripts_path))
 
-# Importar módulos
-from core.procesador import ProcesadorRegistroRetributivo
+# Importar módulos de procesamiento desde 04_SCRIPTS
+sys.path.insert(0, str(scripts_path))
+from procesar_datos import ProcesadorRegistroRetributivo
+from procesar_datos_triodos import ProcesadorTriodos
 from generar_informe_optimizado import GeneradorInformeOptimizado
 
 
@@ -172,7 +177,28 @@ def limpiar_sesion():
             del st.session_state[key]
 
 
+def crear_carpetas_necesarias():
+    """Crea las carpetas necesarias solo para desarrollo local"""
+    # Solo crear carpetas si NO estamos en producción (Streamlit Cloud)
+    # En producción, todo se maneja en memoria sin tocar disco
+    if os.getenv('STREAMLIT_SHARING_MODE') or os.getenv('STREAMLIT_CLOUD'):
+        return  # No crear carpetas en producción
+    
+    base_path = Path(__file__).parent
+    carpetas = [
+        base_path / "01_DATOS_SIN_PROCESAR",
+        base_path / "02_RESULTADOS",
+        base_path / "03_LOGS",
+        base_path / "05_INFORMES"
+    ]
+    for carpeta in carpetas:
+        carpeta.mkdir(exist_ok=True)
+
+
 def main():
+    # Crear carpetas necesarias al inicio
+    crear_carpetas_necesarias()
+    
     # Header con logotipo corporativo
     st.markdown("""
         <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 2rem;">
@@ -207,12 +233,12 @@ def main():
         4. Descarga los resultados
 
         ### Formatos admitidos:
-        - **General**: Formato estándar con hoja "BASE GENERAL"
-        - **Triodos**: Formato bancario (protegido con contraseña)
+        - **General**: Archivo con hoja "BASE GENERAL" (usa `procesar_datos.py`)
+        - **Triodos**: Archivo Triodos Bank protegido (usa `procesar_datos_triodos.py`)
 
         ### Archivos generados:
         - **Excel**: Datos procesados con columnas equiparadas
-        - **Word**: Informe completo con gráficos y tablas
+        - **Word**: Informe completo con gráficos y tablas (usa `generar_informe_optimizado.py`)
         """)
 
         st.markdown("---")
@@ -319,45 +345,142 @@ def main():
                         # PASO 1: Procesar datos (si corresponde)
                         if accion in ["Ambas", "Procesar Datos"]:
                             with st.spinner("📊 Procesando datos..."):
-                                procesador = ProcesadorRegistroRetributivo()
-
-                                # Procesar según tipo y protección
-                                if tipo_archivo == "Triodos" or archivo_protegido:
-                                    excel_procesado = procesador.procesar_excel_triodos(
-                                        archivo_bytes,
-                                        password=password if password else "Triodos2025"
-                                    )
-                                else:
-                                    excel_procesado = procesador.procesar_excel_general(archivo_bytes)
-
-                                st.success("✅ Datos procesados correctamente")
+                                # Guardar temporalmente el archivo (se borra automáticamente)
+                                with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp_file:
+                                    tmp_file.write(archivo_bytes)
+                                    tmp_path = Path(tmp_file.name)
+                                
+                                try:
+                                    # Seleccionar procesador según tipo
+                                    if tipo_archivo == "Triodos":
+                                        st.info("📋 Usando procesador de Triodos Bank...")
+                                        procesador = ProcesadorTriodos()
+                                    else:
+                                        st.info("📋 Usando procesador general...")
+                                        procesador = ProcesadorRegistroRetributivo()
+                                    
+                                    # Procesar el archivo
+                                    resultado = procesador.procesar_archivo(tmp_path)
+                                    
+                                    if resultado['estado'] == 'ÉXITO':
+                                        # Leer el archivo generado desde disco
+                                        carpeta_resultados = Path(__file__).parent / "02_RESULTADOS"
+                                        archivo_resultado = carpeta_resultados / resultado['archivo_resultado']
+                                        
+                                        if archivo_resultado.exists():
+                                            # Cargar en memoria
+                                            with open(archivo_resultado, 'rb') as f:
+                                                excel_procesado = io.BytesIO(f.read())
+                                            
+                                            # IMPORTANTE: Borrar archivo del disco inmediatamente
+                                            try:
+                                                archivo_resultado.unlink()
+                                                st.info("🔒 Archivo temporal eliminado del servidor")
+                                            except Exception as e:
+                                                st.warning(f"⚠️ No se pudo eliminar archivo temporal: {e}")
+                                            
+                                            # Guardar estadísticas
+                                            st.session_state['estadisticas'] = {
+                                                'total_registros': resultado['registros_procesados'],
+                                                'tiempo_procesamiento': resultado['tiempo_procesamiento']
+                                            }
+                                            
+                                            st.success(f"✅ Datos procesados: {resultado['registros_procesados']} registros en {resultado['tiempo_procesamiento']:.1f}s")
+                                        else:
+                                            raise Exception(f"No se encontró el archivo resultado: {archivo_resultado}")
+                                    else:
+                                        raise Exception(resultado.get('error', 'Error desconocido en el procesamiento'))
+                                
+                                finally:
+                                    # Limpiar archivo temporal de entrada
+                                    if tmp_path.exists():
+                                        tmp_path.unlink()
 
                         # PASO 2: Generar informe (si corresponde)
                         if accion in ["Ambas", "Generar Informe"]:
                             with st.spinner("📄 Generando informe Word..."):
-                                # Si no se procesaron los datos, usar el archivo original
+                                # Determinar qué archivo usar para el informe
                                 if excel_procesado is None:
-                                    excel_para_informe = io.BytesIO(archivo_bytes)
-                                else:
-                                    excel_procesado.seek(0)
-                                    excel_para_informe = excel_procesado
-
-                                # Usar el generador optimizado
-                                generador = GeneradorInformeOptimizado()
-                                
-                                # Cargar datos desde BytesIO
-                                if generador.cargar_datos_desde_bytes(excel_para_informe):
-                                    # Generar informe (por defecto CONSOLIDADO)
-                                    informe_word = generador.generar_informe_bytes('CONSOLIDADO')
+                                    # Si no se procesaron datos, buscar el último archivo en 02_RESULTADOS
+                                    carpeta_resultados = Path(__file__).parent / "02_RESULTADOS"
                                     
-                                    if informe_word:
-                                        st.success("✅ Informe generado correctamente")
+                                    if carpeta_resultados.exists():
+                                        archivos = list(carpeta_resultados.glob('REPORTE_*.xlsx'))
+                                        archivos = [f for f in archivos if not f.name.startswith('~$')]
+                                        
+                                        if archivos:
+                                            archivo_mas_reciente = max(archivos, key=lambda x: x.stat().st_mtime)
+                                            st.info(f"📋 Usando archivo: {archivo_mas_reciente.name}")
+                                        else:
+                                            raise Exception("No se encontraron archivos procesados. Primero procesa los datos.")
                                     else:
-                                        st.error("❌ Error al generar el informe Word")
-                                        informe_word = None
+                                        raise Exception("No se encontraron archivos procesados. Primero procesa los datos.")
                                 else:
-                                    st.error("❌ Error al cargar los datos para el informe")
-                                    informe_word = None
+                                    # Guardar temporalmente el archivo procesado
+                                    with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx', mode='wb') as tmp_file:
+                                        excel_procesado.seek(0)
+                                        tmp_file.write(excel_procesado.read())
+                                        archivo_mas_reciente = Path(tmp_file.name)
+                                
+                                try:
+                                    # Crear generador de informes
+                                    generador = GeneradorInformeOptimizado()
+                                    
+                                    # Cargar datos desde el archivo
+                                    generador.df = pd.read_excel(archivo_mas_reciente)
+                                    
+                                    # Mapear valores de la columna Sexo
+                                    if 'Sexo' in generador.df.columns:
+                                        generador.df['Sexo'] = generador.df['Sexo'].map({
+                                            'Hombres': 'H',
+                                            'Mujeres': 'M'
+                                        }).fillna(generador.df['Sexo'])
+                                    
+                                    st.info(f"📊 Datos cargados: {len(generador.df)} registros")
+                                    
+                                    # Generar el informe (tipo CONSOLIDADO por defecto)
+                                    if generador.generar_informe('CONSOLIDADO'):
+                                        # Leer el archivo Word generado
+                                        carpeta_informes = Path(__file__).parent / "05_INFORMES"
+                                        
+                                        # Buscar el archivo más reciente
+                                        if carpeta_informes.exists():
+                                            archivos_word = list(carpeta_informes.glob('registro_retributivo_*.docx'))
+                                            if archivos_word:
+                                                archivo_word = max(archivos_word, key=lambda x: x.stat().st_mtime)
+                                                
+                                                # Cargar en memoria
+                                                with open(archivo_word, 'rb') as f:
+                                                    informe_word = io.BytesIO(f.read())
+                                                
+                                                # IMPORTANTE: Borrar archivo del disco inmediatamente
+                                                try:
+                                                    archivo_word.unlink()
+                                                    st.info("🔒 Informe temporal eliminado del servidor")
+                                                except Exception as e:
+                                                    st.warning(f"⚠️ No se pudo eliminar informe temporal: {e}")
+                                                
+                                                # Limpiar imágenes temporales de gráficos
+                                                try:
+                                                    for temp_file in generador.archivos_temp:
+                                                        if os.path.exists(temp_file):
+                                                            os.remove(temp_file)
+                                                except:
+                                                    pass
+                                                
+                                                st.success("✅ Informe generado correctamente")
+                                            else:
+                                                raise Exception("No se encontró el archivo Word generado")
+                                        else:
+                                            raise Exception("No se pudo crear el informe")
+                                    else:
+                                        raise Exception("Error al generar el informe")
+                                
+                                finally:
+                                    # Limpiar archivo temporal si se creó
+                                    if excel_procesado is not None and archivo_mas_reciente.parent == Path(tempfile.gettempdir()):
+                                        if archivo_mas_reciente.exists():
+                                            archivo_mas_reciente.unlink()
 
                         # Guardar en session_state
                         if excel_procesado:
@@ -369,16 +492,6 @@ def main():
 
                         st.session_state['nombre_archivo'] = archivo_subido.name.replace('.xlsx', '').replace('.xls', '')
                         st.session_state['accion_realizada'] = accion
-
-                        # Calcular estadísticas básicas (si se procesó)
-                        if excel_procesado:
-                            import pandas as pd
-                            excel_procesado.seek(0)
-                            df = pd.read_excel(excel_procesado, sheet_name='DATOS_PROCESADOS')
-                            st.session_state['estadisticas'] = {
-                                'total_registros': len(df),
-                                'columnas': len(df.columns)
-                            }
 
                         st.success(f"✅ {accion} completado exitosamente!")
 
@@ -399,9 +512,12 @@ def main():
                     <div class="success-box">
                         <strong>📊 Estadísticas del procesamiento:</strong><br>
                         • Registros procesados: <strong>{}</strong><br>
-                        • Columnas generadas: <strong>{}</strong>
+                        • Tiempo de procesamiento: <strong>{:.2f}s</strong>
                     </div>
-                """.format(stats['total_registros'], stats['columnas']), unsafe_allow_html=True)
+                """.format(
+                    stats['total_registros'],
+                    stats.get('tiempo_procesamiento', 0)
+                ), unsafe_allow_html=True)
 
             # Botones de descarga
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

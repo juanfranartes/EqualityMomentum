@@ -6,7 +6,6 @@ Versión refactorizada sin redundancia con funciones reutilizables
 
 import sys
 import os
-import io
 from pathlib import Path
 from datetime import datetime
 import pandas as pd
@@ -98,11 +97,11 @@ COLS = {
     'sbce_equiparado': 'sb_mas_comp_total_equiparado',
 
     # Complementos Salariales
-    'comp_efectivo': 'Compltos Salariales efectivo Total',
+    'comp_efectivo': 'Compltos Salariales efectivo Total ',
     'comp_equiparado': 'complementos_salariales_equiparados',
 
     # Complementos Extrasalariales
-    'extra_efectivo': 'Compltos Extrasalariales efectivo Total',
+    'extra_efectivo': 'Compltos Extrasalariales efectivo Total ',
     'extra_equiparado': 'complementos_extrasalariales_equiparados',
 
     # Puntos
@@ -1038,46 +1037,6 @@ def crear_grafico_salarios_con_puntos_condicional(datos_lista, titulo, nombre_ar
         )
 
 
-# ==================== APLICACIÓN DE ESTILOS DE PLANTILLA ====================
-
-def aplicar_estilo_si_existe(elemento, nombre_estilo, doc):
-    """
-    Aplica un estilo de la plantilla al elemento si existe.
-    Si no existe, mantiene el estilo por defecto.
-    
-    Args:
-        elemento: Párrafo o celda a aplicar el estilo
-        nombre_estilo: Nombre del estilo en la plantilla (ej: 'Heading 1', 'Normal')
-        doc: Documento de Word
-    
-    Returns:
-        True si se aplicó el estilo, False si no existe
-    """
-    try:
-        # Verificar si el estilo existe en el documento
-        if nombre_estilo in doc.styles:
-            elemento.style = nombre_estilo
-            return True
-        return False
-    except Exception as e:
-        log(f"No se pudo aplicar el estilo '{nombre_estilo}': {e}", 'WARN')
-        return False
-
-
-def listar_estilos_disponibles(doc):
-    """
-    Lista todos los estilos disponibles en el documento.
-    Útil para debugging y ver qué estilos tiene la plantilla.
-    """
-    estilos = []
-    try:
-        for style in doc.styles:
-            estilos.append(style.name)
-    except Exception as e:
-        log(f"Error al listar estilos: {e}", 'WARN')
-    return estilos
-
-
 # ==================== GENERACIÓN DE TABLAS WORD ====================
 
 def colorear_texto_celda(cell, color_rgb):
@@ -1167,8 +1126,7 @@ def crear_tabla_resumen(doc, titulo, datos, metodo='PROMEDIO'):
         log(f"Tabla '{titulo}' omitida por privacidad (empleado identificable)", 'WARN')
         return
 
-    heading = doc.add_heading(titulo, level=3)
-    aplicar_estilo_si_existe(heading, 'Heading 3', doc)
+    doc.add_heading(titulo, level=3)
 
     # Extraer el código del concepto del título (ej: "(SB)", "(SB+C)", "(SB+C+ES)")
     # Buscar el texto entre paréntesis al final del título
@@ -1780,79 +1738,6 @@ class GeneradorInformeOptimizado:
             log(f"Error al cargar datos: {e}", 'ERROR')
             return False
 
-    def cargar_datos_desde_bytes(self, excel_bytes):
-        """
-        Carga datos desde BytesIO para uso en Streamlit
-        
-        Args:
-            excel_bytes: BytesIO o bytes del Excel procesado
-        
-        Returns:
-            bool: True si se cargó correctamente
-        """
-        try:
-            if isinstance(excel_bytes, bytes):
-                excel_bytes = io.BytesIO(excel_bytes)
-            
-            excel_bytes.seek(0)
-            self.df = pd.read_excel(excel_bytes, sheet_name='DATOS_PROCESADOS')
-            
-            # Limpiar espacios en nombres de columnas
-            self.df.columns = self.df.columns.str.strip()
-            
-            # Mapear valores de la columna Sexo a formato corto
-            if 'Sexo' in self.df.columns:
-                self.df['Sexo'] = self.df['Sexo'].map({
-                    'Hombres': 'H',
-                    'Mujeres': 'M'
-                }).fillna(self.df['Sexo'])
-            
-            log(f"Datos cargados desde BytesIO: {len(self.df)} registros", 'OK')
-            return True
-        except Exception as e:
-            log(f"Error al cargar datos desde BytesIO: {e}", 'ERROR')
-            return False
-
-    def generar_informe_bytes(self, tipo_informe='CONSOLIDADO'):
-        """
-        Genera el informe Word y lo retorna como BytesIO para Streamlit
-        
-        Args:
-            tipo_informe: 'CONSOLIDADO', 'PROMEDIO', 'MEDIANA', o 'COMPLEMENTOS'
-        
-        Returns:
-            BytesIO con el documento Word generado o None si hay error
-        """
-        if self.df is None:
-            log("No hay datos cargados", 'ERROR')
-            return None
-        
-        log(f"Generando informe tipo: {tipo_informe}")
-        
-        # Generar el informe normalmente
-        if not self.generar_informe(tipo_informe):
-            return None
-        
-        # Leer el archivo generado y convertirlo a BytesIO
-        try:
-            if self.ruta_salida and self.ruta_salida.exists():
-                with open(self.ruta_salida, 'rb') as f:
-                    doc_bytes = io.BytesIO(f.read())
-                
-                # Limpiar el archivo temporal
-                try:
-                    self.ruta_salida.unlink()
-                except:
-                    pass
-                
-                return doc_bytes
-            else:
-                log("No se encontró el archivo generado", 'ERROR')
-                return None
-        except Exception as e:
-            log(f"Error al convertir informe a BytesIO: {e}", 'ERROR')
-            return None
-
     def generar_informe(self, tipo_informe='CONSOLIDADO'):
         """
         Genera el informe Word completo.
@@ -1877,22 +1762,11 @@ class GeneradorInformeOptimizado:
         metodos_a_usar = config['metodos']
         incluir_complementos = config['complementos']
 
-        # Cargar plantilla existente - Buscar en múltiples ubicaciones
-        # 1. En templates/ (para Streamlit Cloud y despliegue)
-        # 2. En 00_DOCUMENTACION/ (para uso local)
-        plantilla_paths = [
-            Path(__file__).parent.parent / 'templates' / 'plantilla_informe.docx',
-            Path(__file__).parent.parent / '00_DOCUMENTACION' / 'Registro retributivo' / 'Reg Retributivo  NUEVA PLANTILLA.docx'
-        ]
-        
-        plantilla_path = None
-        for path in plantilla_paths:
-            if path.exists():
-                plantilla_path = path
-                break
-        
-        if plantilla_path is None:
-            log(f"ADVERTENCIA: No se encontró la plantilla en ninguna ubicación. Creando documento desde cero.", 'WARNING')
+        # Cargar plantilla existente
+        plantilla_path = Path(__file__).parent.parent / '00_DOCUMENTACION' / 'Registro retributivo' / 'Reg Retributivo  NUEVA PLANTILLA.docx'
+
+        if not plantilla_path.exists():
+            log(f"ADVERTENCIA: No se encontró la plantilla en {plantilla_path}. Creando documento desde cero.", 'WARNING')
             doc = Document()
 
             # Configurar márgenes
@@ -1916,19 +1790,6 @@ class GeneradorInformeOptimizado:
         else:
             log(f"Usando plantilla: {plantilla_path}")
             doc = Document(str(plantilla_path))
-            
-            # Listar estilos disponibles (útil para debugging)
-            estilos = listar_estilos_disponibles(doc)
-            log(f"Estilos disponibles en plantilla: {len(estilos)} estilos encontrados")
-            
-            # La plantilla ya contiene portada e introducción
-            # No añadimos salto de página aquí, el contenido se añadirá naturalmente después
-            num_paragraphs = len(doc.paragraphs)
-            num_tables = len(doc.tables)
-            log(f"Plantilla cargada: {num_paragraphs} párrafos, {num_tables} tablas existentes")
-            
-            # Si la plantilla ya tiene contenido, el nuevo contenido se añadirá después automáticamente
-            # Los encabezados y pies de página se mantienen por las secciones existentes
 
 
         # Generar secciones de PROMEDIOS y MEDIANAS (si aplica)
@@ -1936,9 +1797,8 @@ class GeneradorInformeOptimizado:
             for metodo in metodos_a_usar:
                 metodo_label = 'PROMEDIO' if metodo == 'media' else 'MEDIANA'
 
-                # Título del bloque principal (intentar usar estilo de plantilla)
-                heading = doc.add_heading(f'ANÁLISIS CON {metodo_label}', 1)
-                aplicar_estilo_si_existe(heading, 'Heading 1', doc)
+                # Título del bloque principal
+                doc.add_heading(f'ANÁLISIS CON {metodo_label}', 1)
                 doc.add_page_break()
 
                 # 1. Análisis General
@@ -1977,8 +1837,7 @@ class GeneradorInformeOptimizado:
         """Genera la sección de análisis general de salarios"""
         log(f"Generando análisis general ({metodo_label})...")
 
-        heading = doc.add_heading(f'1. ANÁLISIS GENERAL DE SALARIOS ({metodo_label})', 2)
-        aplicar_estilo_si_existe(heading, 'Heading 2', doc)
+        doc.add_heading(f'1. ANÁLISIS GENERAL DE SALARIOS ({metodo_label})', 2)
 
         # Calcular para SB, SB+C, SB+C+ES (efectivo y equiparado)
         configs = [
@@ -2063,8 +1922,7 @@ class GeneradorInformeOptimizado:
         """Genera análisis por grupo profesional"""
         log(f"Generando análisis por grupo profesional ({metodo_label})...")
 
-        heading = doc.add_heading(f'2. ANÁLISIS POR GRUPO PROFESIONAL ({metodo_label})', 2)
-        aplicar_estilo_si_existe(heading, 'Heading 2', doc)
+        doc.add_heading(f'2. ANÁLISIS POR GRUPO PROFESIONAL ({metodo_label})', 2)
 
         # Obtener grupos únicos
         df_actual = self.df[self.df[COLS['reg']] != 'Ex']
@@ -2140,8 +1998,7 @@ class GeneradorInformeOptimizado:
         """Genera análisis por Agrupación (Nivel SVPT) y Puesto de trabajo"""
         log(f"Generando análisis por puesto ({metodo_label})...")
 
-        heading = doc.add_heading(f'3. RETRIBUCIÓN POR AGRUPACIÓN (NIVEL SVPT) Y PUESTO DE TRABAJO ({metodo_label})', 2)
-        aplicar_estilo_si_existe(heading, 'Heading 2', doc)
+        doc.add_heading(f'3. RETRIBUCIÓN POR AGRUPACIÓN (NIVEL SVPT) Y PUESTO DE TRABAJO ({metodo_label})', 2)
 
         # Obtener combinaciones únicas de Nivel SVPT + Puesto
         df_actual = self.df[self.df[COLS['reg']] != 'Ex'].copy()
@@ -2254,8 +2111,7 @@ class GeneradorInformeOptimizado:
         """Genera análisis por nivel de convenio"""
         log(f"Generando análisis por nivel ({metodo_label})...")
 
-        heading = doc.add_heading(f'5. ANÁLISIS POR NIVEL ({metodo_label})', 2)
-        aplicar_estilo_si_existe(heading, 'Heading 2', doc)
+        doc.add_heading(f'5. ANÁLISIS POR NIVEL ({metodo_label})', 2)
 
         # Obtener niveles únicos
         df_actual = self.df[self.df[COLS['reg']] != 'Ex']
@@ -2328,8 +2184,7 @@ class GeneradorInformeOptimizado:
         """Genera análisis agrupado por escalas E1-E5"""
         log(f"Generando análisis por escalas SVPT ({metodo_label})...")
 
-        heading = doc.add_heading(f'4. ANÁLISIS POR ESCALA SVPT (E1-E5) ({metodo_label})', 2)
-        aplicar_estilo_si_existe(heading, 'Heading 2', doc)
+        doc.add_heading(f'4. ANÁLISIS POR ESCALA SVPT (E1-E5) ({metodo_label})', 2)
 
         escalas = obtener_escalas_svpt(self.df)
 
@@ -2410,12 +2265,10 @@ class GeneradorInformeOptimizado:
         """Genera análisis de complementos salariales y extrasalariales (bloque independiente)"""
         log("Generando análisis de complementos...")
 
-        heading1 = doc.add_heading('ANÁLISIS DE COMPLEMENTOS', 1)
-        aplicar_estilo_si_existe(heading1, 'Heading 1', doc)
+        doc.add_heading('ANÁLISIS DE COMPLEMENTOS', 1)
 
         # ==================== COMPLEMENTOS SALARIALES ====================
-        heading2 = doc.add_heading('Complementos Salariales', level=2)
-        aplicar_estilo_si_existe(heading2, 'Heading 2', doc)
+        doc.add_heading('Complementos Salariales', level=2)
 
         # Gráficos donut - Efectivo y Equiparado
         col_comp_efe = COLS['comp_efectivo']
@@ -3098,8 +2951,7 @@ class GeneradorInformeOptimizado:
                     doc.add_paragraph()
 
         # ==================== COMPLEMENTOS EXTRASALARIALES ====================
-        heading2 = doc.add_heading('Complementos Extrasalariales', level=2)
-        aplicar_estilo_si_existe(heading2, 'Heading 2', doc)
+        doc.add_heading('Complementos Extrasalariales', level=2)
 
         # Gráficos donut - Efectivo y Equiparado
         col_extra_efe = COLS['extra_efectivo']
