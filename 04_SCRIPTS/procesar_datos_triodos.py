@@ -16,8 +16,15 @@ import numpy as np
 import warnings
 import logging
 import traceback
-import tkinter as tk
-from tkinter import messagebox
+
+# Importar tkinter solo si está disponible (entornos con GUI)
+try:
+    import tkinter as tk
+    from tkinter import messagebox
+    TKINTER_AVAILABLE = True
+except ImportError:
+    TKINTER_AVAILABLE = False
+
 import msoffcrypto
 
 # ==================== CONFIGURACIÓN GLOBAL ====================
@@ -124,8 +131,12 @@ class ProcesadorTriodos:
         self.password = TRIODOS_PASSWORD
 
     def mostrar_mensaje(self, titulo, mensaje, tipo="info"):
-        """Muestra mensajes al usuario con GUI"""
+        """Muestra mensajes al usuario con GUI (solo si tkinter está disponible)"""
         log(f"Mensaje usuario: {titulo}", 'INFO' if tipo == 'info' else tipo.upper())
+
+        # Solo mostrar GUI si tkinter está disponible
+        if not TKINTER_AVAILABLE:
+            return
 
         root = tk.Tk()
         root.withdraw()

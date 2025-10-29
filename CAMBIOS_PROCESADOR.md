@@ -90,6 +90,26 @@ Usuario sube archivo → streamlit_app.py
 ## Archivos Modificados
 
 - `core/procesador.py` - Completamente refactorizado (650 → 130 líneas)
+- `04_SCRIPTS/procesar_datos.py` - Añadida compatibilidad con entornos sin GUI
+- `04_SCRIPTS/procesar_datos_triodos.py` - Añadida compatibilidad con entornos sin GUI
+
+### Compatibilidad con Streamlit Cloud
+
+Se han modificado los scripts para que funcionen en entornos sin interfaz gráfica:
+
+- **Importación condicional de tkinter**: Los scripts detectan automáticamente si tkinter está disponible
+- **Función `mostrar_mensaje` adaptativa**: Solo muestra diálogos GUI si tkinter está presente
+- **Compatible con Linux/Cloud**: Los scripts funcionan perfectamente en Streamlit Cloud sin tkinter
+
+```python
+# Importación segura
+try:
+    import tkinter as tk
+    from tkinter import messagebox
+    TKINTER_AVAILABLE = True
+except ImportError:
+    TKINTER_AVAILABLE = False
+```
 
 ## Archivos No Modificados (funcionan igual)
 
