@@ -118,6 +118,49 @@ class ProcesadorRegistroRetributivo:
         # Cache para columnas de complementos (optimización)
         self._columnas_complementos_cache = None
         
+        # Definir columnas permitidas
+        self.columnas_permitidas = [
+            'Reg.',
+            'Orden',
+            'Sexo',
+            'Inicio de Sit. Contractual',
+            'Final de Sit. Contractual',
+            'Ascendientes con discapacidad',
+            'Grupo profesional',
+            'Subgrupo profesional',
+            'Nivel Convenio Colectivo',
+            'Categoría profesional',
+            'Puesto de trabajo',
+            'Departamento',
+            'Nivel de estudios puesto de origen',
+            '% de jornada',
+            '¿Cuántos meses ha trabajado?',
+            'Coeficiente Horas Trabajadas Efectivo',
+            '¿Realiza jornada a turnos?',
+            'Salario base anual efectivo',
+            'Salario base efectivo Total',
+            'Salario base anual + complementos',
+            'Salario base anual + complementos Total',
+            'Salario base anual + complementos + Extrasalariales',
+            'Salario base anual + complementos + Extrasalariales Total',
+            'Compltos Salariales efectivo',
+            'Compltos Salariales efectivo Total',
+            'Compltos Extrasalariales efectivo',
+            'Compltos Extrasalariales efectivo Total',
+            'Nivel SVPT',
+            'Puntos',
+            'Convenio',
+            'Centro de trabajo',
+            'Empresa (si forma parte de grupo de empresas)',
+            '¿La persona ha sido cesada en el año de referencia?'
+        ]
+        
+        # Añadir columnas PS1-PS100 y PE1-PE27
+        for i in range(1, 101):
+            self.columnas_permitidas.append(f'PS{i}')
+        for i in range(1, 28):
+            self.columnas_permitidas.append(f'PE{i}')
+        
     def mostrar_mensaje(self, titulo, mensaje, tipo="info"):
         """Muestra mensajes al usuario con GUI (solo si tkinter está disponible)"""
         log(f"Mensaje usuario: {titulo}", 'INFO' if tipo == 'info' else tipo.upper())
@@ -165,6 +208,47 @@ class ProcesadorRegistroRetributivo:
             return False
         normalized = str(value).strip().lower()
         return normalized in ['sí', 'si', 'yes', 'y', '1', 'true']
+
+    def filtrar_columnas_permitidas(self, df):
+        """Filtra el DataFrame para mantener solo las columnas permitidas"""
+        columnas_actuales = df.columns.tolist()
+        
+        # Crear lista de columnas a mantener
+        columnas_a_mantener = []
+        columnas_eliminadas = []
+        
+        for col in columnas_actuales:
+            # Verificar si la columna está en la lista permitida
+            if col in self.columnas_permitidas:
+                columnas_a_mantener.append(col)
+            # También verificar si es una columna PS o PE con formato extendido
+            # Por ejemplo: "PS1 Antigüedad" debe mantenerse si "PS1" está permitido
+            else:
+                # Extraer el código base de columnas tipo "PS 1 Antigüedad" -> "PS1"
+                match = re.match(r'^(P[SE])\s*(\d+)', col)
+                if match:
+                    codigo_base = f"{match.group(1)}{match.group(2)}"
+                    if codigo_base in self.columnas_permitidas:
+                        columnas_a_mantener.append(col)
+                    else:
+                        columnas_eliminadas.append(col)
+                else:
+                    columnas_eliminadas.append(col)
+        
+        # Filtrar DataFrame
+        df_filtrado = df[columnas_a_mantener].copy()
+        
+        if columnas_eliminadas:
+            log(f"Columnas eliminadas (no autorizadas): {len(columnas_eliminadas)}", 'INFO')
+            if len(columnas_eliminadas) <= 10:
+                for col in columnas_eliminadas:
+                    log(f"  • {col}", 'INFO')
+            else:
+                log(f"  • Mostrando primeras 10: {', '.join(columnas_eliminadas[:10])}...", 'INFO')
+        
+        log(f"Columnas mantenidas: {len(columnas_a_mantener)}", 'OK')
+        
+        return df_filtrado
 
     def _cargar_tipo_complemento(self, archivo_path, nombre_hoja, tipo, nombres_columnas_config):
         """Carga un tipo específico de complementos (salarial o extrasalarial)"""
@@ -335,6 +419,10 @@ class ProcesadorRegistroRetributivo:
                     log("La columna 'Reg.' ya es la primera columna")
             else:
                 log("No se encontró la columna 'Reg.', no se eliminaron columnas", 'WARN')
+            
+            # Filtrar columnas para mantener solo las permitidas
+            df = self.filtrar_columnas_permitidas(df)
+            log(f"Datos después del filtrado: {df.shape[0]} filas x {df.shape[1]} columnas", 'OK')
             
             # Cargar configuración de complementos
             self.cargar_configuracion_complementos(excel_file, ruta_archivo)
