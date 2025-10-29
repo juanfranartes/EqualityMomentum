@@ -79,8 +79,12 @@ def log(mensaje, tipo='INFO'):
 # ==================== CLASE PRINCIPAL ====================
 
 class ProcesadorRegistroRetributivo:
-    def __init__(self):
-        """Inicializa el procesador con las rutas y configuración"""
+    def __init__(self, validador=None):
+        """Inicializa el procesador con las rutas y configuración
+
+        Args:
+            validador: Instancia de ValidadorMapeoGeneral con mapeo de hojas y variables (opcional)
+        """
         # Obtener ruta base del ejecutable
         if hasattr(sys, '_MEIPASS'):
             self.base_path = Path(sys.executable).parent
@@ -99,8 +103,12 @@ class ProcesadorRegistroRetributivo:
         log("="*60)
         log("PROCESADOR DE REGISTROS RETRIBUTIVOS - EQUALITY MOMENTUM")
         log("="*60)
-        
+
+        # Guardar validador si se proporcionó
+        self.validador = validador
+
         # Configuración de columnas (nombres exactos del Excel)
+        # Si se proporciona validador, usar el mapeo; si no, usar valores por defecto
         self.mapeo_columnas = {
             'meses_trabajados': '¿Cuántos meses ha trabajado?',
             'coef_tp': '% de jornada',
@@ -108,6 +116,10 @@ class ProcesadorRegistroRetributivo:
             'complementos_salariales_efectivo': 'Complementos Salariales efectivo',
             'complementos_extrasalariales_efectivo': 'Complementos Extrasalariales efectivo'
         }
+
+        # Aplicar mapeo del validador si existe
+        if self.validador:
+            self.mapeo_columnas = self.validador.obtener_mapeo_completo_variables(self.mapeo_columnas)
         
         # Configuración de complementos
         self.configuracion_complementos = {}
@@ -286,12 +298,16 @@ class ProcesadorRegistroRetributivo:
         """Carga la configuración de complementos desde las hojas Excel"""
         log("Cargando configuración de complementos...", 'PROCESO')
 
+        # Usar mapeo del validador si existe
         nombres_columnas_config = {
             'codigo': 'Cod',
             'nombre': 'Nombre',
             'normalizable': '¿Es Normalizable?',
             'anualizable': '¿Es Anualizable?'
         }
+
+        if self.validador:
+            nombres_columnas_config = self.validador.columnas_config_complementos
 
         configuracion = {}
 
@@ -301,7 +317,10 @@ class ProcesadorRegistroRetributivo:
             ('COMPLEMENTOS EXTRASALARIALES', 'extrasalarial')
         ]
 
-        for nombre_hoja, tipo in hojas_config:
+        for nombre_hoja_esperado, tipo in hojas_config:
+            # Usar el nombre mapeado si existe validador
+            nombre_hoja = self.validador.obtener_nombre_hoja(nombre_hoja_esperado) if self.validador else nombre_hoja_esperado
+
             if nombre_hoja in excel_file.sheet_names:
                 config_tipo = self._cargar_tipo_complemento(archivo_path, nombre_hoja, tipo, nombres_columnas_config)
                 configuracion.update(config_tipo)
@@ -407,10 +426,13 @@ class ProcesadorRegistroRetributivo:
             log(f"Hojas disponibles: {excel_file.sheet_names}")
 
             # Cargar hoja principal (BASE GENERAL)
-            if "BASE GENERAL" not in excel_file.sheet_names:
-                raise Exception("No se encontró la hoja 'BASE GENERAL' requerida")
+            # Usar el nombre mapeado si existe validador
+            nombre_hoja_principal = self.validador.obtener_nombre_hoja("BASE GENERAL") if self.validador else "BASE GENERAL"
 
-            df = pd.read_excel(ruta_archivo, sheet_name="BASE GENERAL")
+            if nombre_hoja_principal not in excel_file.sheet_names:
+                raise Exception(f"No se encontró la hoja '{nombre_hoja_principal}' requerida")
+
+            df = pd.read_excel(ruta_archivo, sheet_name=nombre_hoja_principal)
             log(f"Datos cargados: {df.shape[0]} filas x {df.shape[1]} columnas", 'OK')
             
             # IMPORTANTE: Limpiar nombres de columnas (eliminar espacios al inicio/final)

@@ -33,6 +33,7 @@ for modulo_nombre in modulos_a_recargar:
 from procesar_datos import ProcesadorRegistroRetributivo
 from procesar_datos_triodos import ProcesadorTriodos
 from generar_informe_optimizado import GeneradorInformeOptimizado
+from validador_mapeo import ValidadorMapeoGeneral, ValidadorMapeoTriodos
 
 
 # Configuración de la página
@@ -192,7 +193,7 @@ def crear_carpetas_necesarias():
     # En producción, todo se maneja en memoria sin tocar disco
     if os.getenv('STREAMLIT_SHARING_MODE') or os.getenv('STREAMLIT_CLOUD'):
         return  # No crear carpetas en producción
-    
+
     base_path = Path(__file__).parent
     carpetas = [
         base_path / "01_DATOS_SIN_PROCESAR",
@@ -202,6 +203,193 @@ def crear_carpetas_necesarias():
     ]
     for carpeta in carpetas:
         carpeta.mkdir(exist_ok=True)
+
+
+def validar_y_mapear_archivo(archivo_bytes, tipo_archivo, password=None):
+    """
+    Valida el archivo y solicita mapeo manual si es necesario.
+
+    Returns:
+        Tuple (validador_con_mapeo, error_mensaje)
+        Si hay error, validador_con_mapeo será None
+    """
+    try:
+        # Guardar temporalmente el archivo para análisis
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp_file:
+            tmp_file.write(archivo_bytes)
+            tmp_path = Path(tmp_file.name)
+
+        try:
+            # Crear validador según el tipo
+            if tipo_archivo == "Triodos":
+                validador = ValidadorMapeoTriodos()
+                # Si es Triodos, necesitamos desencriptar primero
+                if password:
+                    from procesar_datos_triodos import ProcesadorTriodos
+                    procesador_temp = ProcesadorTriodos()
+                    procesador_temp.password = password
+                    archivo_decrypted = procesador_temp.abrir_archivo_protegido(tmp_path)
+                    excel_file = pd.ExcelFile(archivo_decrypted)
+                else:
+                    excel_file = pd.ExcelFile(tmp_path)
+            else:
+                validador = ValidadorMapeoGeneral()
+                excel_file = pd.ExcelFile(tmp_path)
+
+            # PASO 1: Validar hojas
+            resultado_hojas = validador.validar_hojas(excel_file, validador.hojas_requeridas)
+
+            if resultado_hojas['faltantes']:
+                st.warning(f"⚠️ Se encontraron {len(resultado_hojas['faltantes'])} hojas faltantes")
+
+                st.markdown("### 🗂️ Mapeo de Hojas")
+                st.info("Las siguientes hojas no se encontraron con el nombre esperado. Por favor, selecciona manualmente qué hoja corresponde a cada una:")
+
+                mapeo_hojas_usuario = {}
+                for hoja_faltante in resultado_hojas['faltantes']:
+                    st.markdown(f"**Hoja esperada:** `{hoja_faltante}`")
+
+                    opciones_disponibles = ["⛔ No mapear (omitir)"] + resultado_hojas['disponibles']
+
+                    seleccion = st.selectbox(
+                        f"Selecciona la hoja real para '{hoja_faltante}':",
+                        options=opciones_disponibles,
+                        key=f"hoja_{hoja_faltante}",
+                        help=f"Selecciona qué hoja de tu archivo corresponde a '{hoja_faltante}'"
+                    )
+
+                    if seleccion != "⛔ No mapear (omitir)":
+                        mapeo_hojas_usuario[hoja_faltante] = seleccion
+
+                    st.markdown("---")
+
+                # Aplicar mapeo de hojas
+                validador.aplicar_mapeo_hojas(mapeo_hojas_usuario)
+
+                # Verificar que se hayan mapeado todas las hojas críticas
+                hojas_criticas_sin_mapear = [h for h in resultado_hojas['faltantes'] if h not in mapeo_hojas_usuario]
+                if hojas_criticas_sin_mapear:
+                    return None, f"Las siguientes hojas son obligatorias y no fueron mapeadas: {', '.join(hojas_criticas_sin_mapear)}"
+
+            # PASO 2: Validar variables de la hoja principal (BASE GENERAL)
+            nombre_hoja_principal = validador.obtener_nombre_hoja('BASE GENERAL')
+
+            try:
+                if tipo_archivo == "Triodos" and password:
+                    # Reabrir el archivo desencriptado
+                    archivo_decrypted.seek(0)
+                    df = pd.read_excel(archivo_decrypted, sheet_name=nombre_hoja_principal)
+                else:
+                    df = pd.read_excel(tmp_path, sheet_name=nombre_hoja_principal)
+
+                # Limpiar nombres de columnas
+                df.columns = df.columns.str.strip()
+
+            except Exception as e:
+                return None, f"Error al leer la hoja '{nombre_hoja_principal}': {str(e)}"
+
+            resultado_variables = validador.validar_variables(df, validador.variables_criticas)
+
+            if resultado_variables['faltantes']:
+                st.warning(f"⚠️ Se encontraron {len(resultado_variables['faltantes'])} variables faltantes")
+
+                st.markdown("### 📊 Mapeo de Variables")
+                st.info("Las siguientes columnas no se encontraron con el nombre esperado. Por favor, selecciona manualmente qué columna corresponde a cada una:")
+
+                mapeo_variables_usuario = {}
+                for clave_interna, nombre_esperado in resultado_variables['faltantes'].items():
+                    st.markdown(f"**Variable esperada:** `{nombre_esperado}` (clave interna: `{clave_interna}`)")
+
+                    opciones_disponibles = ["⛔ No mapear (omitir)"] + resultado_variables['disponibles']
+
+                    seleccion = st.selectbox(
+                        f"Selecciona la columna real para '{nombre_esperado}':",
+                        options=opciones_disponibles,
+                        key=f"var_{clave_interna}",
+                        help=f"Selecciona qué columna de tu archivo corresponde a '{nombre_esperado}'"
+                    )
+
+                    if seleccion != "⛔ No mapear (omitir)":
+                        mapeo_variables_usuario[clave_interna] = seleccion
+
+                    st.markdown("---")
+
+                # Aplicar mapeo de variables
+                validador.aplicar_mapeo_variables(mapeo_variables_usuario)
+
+                # Verificar que se hayan mapeado todas las variables críticas
+                # Para el procesador general, son críticas: meses_trabajados, coef_tp, salario_base_efectivo
+                variables_criticas_minimas = ['meses_trabajados', 'coef_tp', 'salario_base_efectivo']
+                if tipo_archivo == "Triodos":
+                    variables_criticas_minimas = ['num_personal', 'fecha_inicio_sit', 'fecha_fin_sit', 'salario_base_efectivo']
+
+                variables_criticas_sin_mapear = [
+                    clave for clave in variables_criticas_minimas
+                    if clave in resultado_variables['faltantes'] and clave not in mapeo_variables_usuario
+                ]
+
+                if variables_criticas_sin_mapear:
+                    nombres_esperados = [validador.variables_criticas[c] for c in variables_criticas_sin_mapear]
+                    return None, f"Las siguientes variables son obligatorias y no fueron mapeadas: {', '.join(nombres_esperados)}"
+
+            # PASO 3: Validar variables de hojas de complementos
+            for nombre_hoja_config in ['COMPLEMENTOS SALARIALES', 'COMPLEMENTOS EXTRASALARIALES']:
+                nombre_hoja_real = validador.obtener_nombre_hoja(nombre_hoja_config)
+
+                if nombre_hoja_real not in excel_file.sheet_names:
+                    continue  # Esta hoja no fue mapeada, omitir
+
+                try:
+                    if tipo_archivo == "Triodos" and password:
+                        archivo_decrypted.seek(0)
+                        df_comp = pd.read_excel(archivo_decrypted, sheet_name=nombre_hoja_real)
+                    else:
+                        df_comp = pd.read_excel(tmp_path, sheet_name=nombre_hoja_real)
+
+                    df_comp.columns = df_comp.columns.str.strip()
+
+                    resultado_vars_comp = validador.validar_variables(df_comp, validador.columnas_config_complementos)
+
+                    if resultado_vars_comp['faltantes']:
+                        st.warning(f"⚠️ Variables faltantes en '{nombre_hoja_config}'")
+
+                        st.markdown(f"### 📋 Mapeo de Variables de '{nombre_hoja_config}'")
+
+                        mapeo_comp_usuario = {}
+                        for clave_interna, nombre_esperado in resultado_vars_comp['faltantes'].items():
+                            st.markdown(f"**Variable esperada:** `{nombre_esperado}` en hoja `{nombre_hoja_config}`")
+
+                            opciones_disponibles = ["⛔ No mapear (omitir)"] + resultado_vars_comp['disponibles']
+
+                            seleccion = st.selectbox(
+                                f"Selecciona la columna real para '{nombre_esperado}':",
+                                options=opciones_disponibles,
+                                key=f"comp_{nombre_hoja_config}_{clave_interna}",
+                                help=f"Columna que corresponde a '{nombre_esperado}' en la hoja '{nombre_hoja_config}'"
+                            )
+
+                            if seleccion != "⛔ No mapear (omitir)":
+                                mapeo_comp_usuario[clave_interna] = seleccion
+
+                            st.markdown("---")
+
+                        # Aplicar mapeo de variables de complementos
+                        # Nota: Estas variables se deben aplicar directamente en las columnas_config_complementos del validador
+                        for clave, valor in mapeo_comp_usuario.items():
+                            validador.columnas_config_complementos[clave] = valor
+
+                except Exception as e:
+                    st.warning(f"⚠️ Error al leer la hoja '{nombre_hoja_real}': {str(e)}")
+
+            return validador, None
+
+        finally:
+            # Limpiar archivo temporal
+            if tmp_path.exists():
+                tmp_path.unlink()
+
+    except Exception as e:
+        return None, f"Error durante la validación: {str(e)}"
 
 
 def main():
@@ -354,11 +542,25 @@ def main():
                     st.error("❌ Por favor, introduce la contraseña del archivo antes de procesar.")
                     st.stop()
 
+                # PASO PREVIO: Validar y mapear campos
+                with st.spinner("🔍 Validando archivo y detectando campos..."):
+                    # Leer archivo como bytes
+                    archivo_bytes = archivo_subido.read()
+                    archivo_subido.seek(0)  # Reset para poder leerlo después
+
+                    # Validar y mapear
+                    validador, error = validar_y_mapear_archivo(archivo_bytes, tipo_archivo, password)
+
+                    if error:
+                        st.error(f"❌ Error: {error}")
+                        st.stop()
+
+                    if validador:
+                        st.success("✅ Validación completada. Campos mapeados correctamente.")
+                        st.session_state['validador'] = validador
+
                 with st.spinner(f"{accion}... Esto puede tardar unos segundos."):
                     try:
-                        # Leer archivo como bytes
-                        archivo_bytes = archivo_subido.read()
-
                         excel_procesado = None
                         informe_word = None
 
@@ -372,15 +574,18 @@ def main():
                                 
                                 try:
                                     # Seleccionar procesador según tipo
+                                    # Pasar el validador al procesador si existe
+                                    validador_a_usar = st.session_state.get('validador', None)
+
                                     if tipo_archivo == "Triodos":
                                         st.info("📋 Usando procesador de Triodos Bank...")
-                                        procesador = ProcesadorTriodos()
+                                        procesador = ProcesadorTriodos(validador=validador_a_usar)
                                         # Configurar la contraseña si se proporcionó
                                         if password:
                                             procesador.password = password
                                     else:
                                         st.info("📋 Usando procesador general...")
-                                        procesador = ProcesadorRegistroRetributivo()
+                                        procesador = ProcesadorRegistroRetributivo(validador=validador_a_usar)
 
                                     # Procesar el archivo
                                     resultado = procesador.procesar_archivo(tmp_path)

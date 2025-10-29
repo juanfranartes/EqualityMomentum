@@ -84,8 +84,12 @@ def log(mensaje, tipo='INFO'):
 # ==================== CLASE PRINCIPAL ====================
 
 class ProcesadorTriodos:
-    def __init__(self):
-        """Inicializa el procesador para Triodos"""
+    def __init__(self, validador=None):
+        """Inicializa el procesador para Triodos
+
+        Args:
+            validador: Instancia de ValidadorMapeoTriodos con mapeo de hojas y variables (opcional)
+        """
         # Obtener ruta base
         if hasattr(sys, '_MEIPASS'):
             self.base_path = Path(sys.executable).parent
@@ -105,6 +109,9 @@ class ProcesadorTriodos:
         log("PROCESADOR TRIODOS BANK - EQUALITY MOMENTUM")
         log("="*60)
 
+        # Guardar validador si se proporcionó
+        self.validador = validador
+
         # Mapeo de columnas Triodos → Formato Maestro
         self.mapeo_columnas = {
             'num_personal': 'Nº personal',
@@ -121,6 +128,10 @@ class ProcesadorTriodos:
             'salario_base_efectivo': 'A154-Salario base de nivel*CT',
             'bruto_pagado': 'Bruto pagado'
         }
+
+        # Aplicar mapeo del validador si existe
+        if self.validador:
+            self.mapeo_columnas = self.validador.obtener_mapeo_completo_variables(self.mapeo_columnas)
 
         # Configuración de complementos
         self.configuracion_complementos = {}
@@ -318,12 +329,16 @@ class ProcesadorTriodos:
         """Carga la configuración de complementos desde las hojas Excel"""
         log("Cargando configuración de complementos de Triodos...", 'PROCESO')
 
+        # Usar mapeo del validador si existe
         nombres_columnas_config = {
             'codigo': 'Cod',
             'nombre': 'Nombre',
             'normalizable': '¿Es Normalizable?',
             'anualizable': '¿Es Anualizable?'
         }
+
+        if self.validador:
+            nombres_columnas_config = self.validador.columnas_config_complementos
 
         configuracion = {}
 
@@ -333,7 +348,9 @@ class ProcesadorTriodos:
             ('COMPLEMENTOS EXTRASALARIALES', 'extrasalarial')
         ]
 
-        for nombre_hoja, tipo in hojas_config:
+        for nombre_hoja_esperado, tipo in hojas_config:
+            # Usar el nombre mapeado si existe validador
+            nombre_hoja = self.validador.obtener_nombre_hoja(nombre_hoja_esperado) if self.validador else nombre_hoja_esperado
             try:
                 df_comp = pd.read_excel(archivo_decrypted, sheet_name=nombre_hoja, engine='openpyxl')
                 archivo_decrypted.seek(0)
@@ -451,7 +468,9 @@ class ProcesadorTriodos:
             archivo_decrypted = self.abrir_archivo_protegido(ruta_archivo)
 
             # Cargar hoja principal (BASE GENERAL)
-            df = pd.read_excel(archivo_decrypted, sheet_name="BASE GENERAL", engine='openpyxl')
+            # Usar el nombre mapeado si existe validador
+            nombre_hoja_principal = self.validador.obtener_nombre_hoja("BASE GENERAL") if self.validador else "BASE GENERAL"
+            df = pd.read_excel(archivo_decrypted, sheet_name=nombre_hoja_principal, engine='openpyxl')
             archivo_decrypted.seek(0)
             log(f"Datos cargados: {df.shape[0]} filas x {df.shape[1]} columnas", 'OK')
             
