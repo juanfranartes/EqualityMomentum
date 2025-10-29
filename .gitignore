@@ -34,6 +34,9 @@ Instaladores/
 *.exe
 *.msi
 
+# Documentación interna
+00_DOCUMENTACION/
+
 # Datos sensibles
 01_DATOS_SIN_PROCESAR/*.xlsx
 01_DATOS_SIN_PROCESAR/*.xls
