@@ -2,6 +2,19 @@
 """
 Sistema Optimizado para Generación de Informes de Registro Retributivo
 Versión refactorizada sin redundancia con funciones reutilizables
+
+Este script puede ejecutarse de dos formas:
+1. Modo standalone: python generar_informe_optimizado.py [tipo_informe]
+2. Modo Streamlit: Importar la clase GeneradorInformeOptimizado
+
+Ejemplo de uso en Streamlit:
+    from generar_informe_optimizado import GeneradorInformeOptimizado
+
+    generador = GeneradorInformeOptimizado()
+    if generador.cargar_datos_desde_archivo("ruta/al/archivo.xlsx"):
+        if generador.generar_informe(tipo_informe='CONSOLIDADO'):
+            # El informe se genera en generador.ruta_salida
+            st.success(f"Informe generado en: {generador.ruta_salida}")
 """
 
 import sys
@@ -96,12 +109,12 @@ COLS = {
     'sbc_equiparado': 'sb_mas_comp_salariales_equiparado',
     'sbce_equiparado': 'sb_mas_comp_total_equiparado',
 
-    # Complementos Salariales
-    'comp_efectivo': 'Complementos Salariales efectivo Total ',
+    # Complementos Salariales (SIN espacio al final)
+    'comp_efectivo': 'Complementos Salariales efectivo Total',
     'comp_equiparado': 'complementos_salariales_equiparados',
 
-    # Complementos Extrasalariales
-    'extra_efectivo': 'Complementos Extrasalariales efectivo Total ',
+    # Complementos Extrasalariales (SIN espacio al final)
+    'extra_efectivo': 'Complementos Extrasalariales efectivo Total',
     'extra_equiparado': 'complementos_extrasalariales_equiparados',
 
     # Puntos
@@ -1706,6 +1719,51 @@ class GeneradorInformeOptimizado:
         self.ruta_salida = None
         self.archivos_temp = []
 
+    def cargar_datos_desde_archivo(self, ruta_archivo):
+        """
+        Carga datos desde un archivo Excel específico.
+        Útil para Streamlit cuando el usuario carga un archivo.
+
+        Args:
+            ruta_archivo: Path o str con la ruta al archivo Excel
+
+        Returns:
+            bool: True si la carga fue exitosa, False en caso contrario
+        """
+        log(f"Cargando datos desde archivo específico: {ruta_archivo}")
+
+        try:
+            self.df = pd.read_excel(ruta_archivo)
+
+            # Normalizar nombres de columnas (eliminar espacios al final y corregir typos)
+            # Primero limpiamos todos los espacios al final
+            self.df.columns = self.df.columns.str.rstrip()
+
+            # Luego corregimos typos antiguos
+            column_fixes = {
+                'Compltos Salariales efectivo': 'Complementos Salariales efectivo',
+                'Compltos Salariales efectivo Total': 'Complementos Salariales efectivo Total',
+                'Compltos Extrasalariales efectivo': 'Complementos Extrasalariales efectivo',
+                'Compltos Extrasalariales efectivo Total': 'Complementos Extrasalariales efectivo Total'
+            }
+
+            self.df.rename(columns=column_fixes, inplace=True)
+
+            # Mapear valores de la columna Sexo a formato corto
+            if 'Sexo' in self.df.columns:
+                self.df['Sexo'] = self.df['Sexo'].map({
+                    'Hombres': 'H',
+                    'Mujeres': 'M'
+                }).fillna(self.df['Sexo'])  # Mantener valores no mapeados
+
+            log(f"Datos cargados: {len(self.df)} registros", 'OK')
+            return True
+        except Exception as e:
+            log(f"Error al cargar datos: {e}", 'ERROR')
+            import traceback
+            log(f"Traceback: {traceback.format_exc()}", 'ERROR')
+            return False
+
     def cargar_datos(self):
         """Carga el archivo Excel más reciente de la carpeta 02_RESULTADOS"""
         log("Buscando archivo de datos...")
@@ -1731,14 +1789,18 @@ class GeneradorInformeOptimizado:
         try:
             self.df = pd.read_excel(archivo)
 
-            # Normalizar nombres de columnas (corregir typos antiguos)
+            # Normalizar nombres de columnas (eliminar espacios al final y corregir typos)
+            # Primero limpiamos todos los espacios al final
+            self.df.columns = self.df.columns.str.rstrip()
+
+            # Luego corregimos typos antiguos
             column_fixes = {
                 'Compltos Salariales efectivo': 'Complementos Salariales efectivo',
-                'Compltos Salariales efectivo Total ': 'Complementos Salariales efectivo Total ',
+                'Compltos Salariales efectivo Total': 'Complementos Salariales efectivo Total',
                 'Compltos Extrasalariales efectivo': 'Complementos Extrasalariales efectivo',
-                'Compltos Extrasalariales efectivo Total ': 'Complementos Extrasalariales efectivo Total '
+                'Compltos Extrasalariales efectivo Total': 'Complementos Extrasalariales efectivo Total'
             }
-            
+
             self.df.rename(columns=column_fixes, inplace=True)
 
             # Mapear valores de la columna Sexo a formato corto
