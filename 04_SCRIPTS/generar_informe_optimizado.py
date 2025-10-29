@@ -1836,11 +1836,22 @@ class GeneradorInformeOptimizado:
         metodos_a_usar = config['metodos']
         incluir_complementos = config['complementos']
 
-        # Cargar plantilla existente
-        plantilla_path = Path(__file__).parent.parent / '00_DOCUMENTACION' / 'Registro retributivo' / 'Reg Retributivo  NUEVA PLANTILLA.docx'
-
-        if not plantilla_path.exists():
-            log(f"ADVERTENCIA: No se encontró la plantilla en {plantilla_path}. Creando documento desde cero.", 'WARNING')
+        # Cargar plantilla existente - Buscar en múltiples ubicaciones
+        # 1. En templates/ (para Streamlit Cloud y despliegue)
+        # 2. En 00_DOCUMENTACION/ (para uso local)
+        plantilla_paths = [
+            Path(__file__).parent.parent / 'templates' / 'plantilla_informe.docx',
+            Path(__file__).parent.parent / '00_DOCUMENTACION' / 'Registro retributivo' / 'Reg Retributivo  NUEVA PLANTILLA.docx'
+        ]
+        
+        plantilla_path = None
+        for path in plantilla_paths:
+            if path.exists():
+                plantilla_path = path
+                break
+        
+        if plantilla_path is None:
+            log(f"ADVERTENCIA: No se encontró la plantilla en ninguna ubicación. Creando documento desde cero.", 'WARNING')
             doc = Document()
 
             # Configurar márgenes
