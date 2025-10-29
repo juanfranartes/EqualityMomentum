@@ -228,9 +228,14 @@ def main():
         st.markdown("""
         ### Cómo usar:
         1. Selecciona el tipo de archivo
-        2. Sube tu archivo Excel
-        3. Procesa los datos
-        4. Descarga los resultados
+        2. Selecciona la acción deseada
+        3. Sube tu archivo Excel
+        4. Procesa y descarga resultados
+
+        ### Acciones disponibles:
+        - **Ambas**: Procesa datos Y genera informe (recomendado)
+        - **Procesar Datos**: Solo genera Excel procesado
+        - **Generar Informe**: Genera informe Word de archivo ya procesado
 
         ### Formatos admitidos:
         - **General**: Archivo con hoja "BASE GENERAL" (usa `procesar_datos.py`)
@@ -400,34 +405,37 @@ def main():
                         if accion in ["Ambas", "Generar Informe"]:
                             with st.spinner("📄 Generando informe Word..."):
                                 # Determinar qué archivo usar para el informe
-                                if excel_procesado is None:
-                                    # Si no se procesaron datos, buscar el último archivo en 02_RESULTADOS
-                                    carpeta_resultados = Path(__file__).parent / "02_RESULTADOS"
+                                archivo_para_informe = None
+                                
+                                if accion == "Ambas":
+                                    # Usar el archivo recién procesado
+                                    if excel_procesado is None:
+                                        raise Exception("Error: No se pudo procesar el archivo Excel")
                                     
-                                    if carpeta_resultados.exists():
-                                        archivos = list(carpeta_resultados.glob('REPORTE_*.xlsx'))
-                                        archivos = [f for f in archivos if not f.name.startswith('~$')]
-                                        
-                                        if archivos:
-                                            archivo_mas_reciente = max(archivos, key=lambda x: x.stat().st_mtime)
-                                            st.info(f"📋 Usando archivo: {archivo_mas_reciente.name}")
-                                        else:
-                                            raise Exception("No se encontraron archivos procesados. Primero procesa los datos.")
-                                    else:
-                                        raise Exception("No se encontraron archivos procesados. Primero procesa los datos.")
-                                else:
+                                    st.info("📋 Generando informe con datos recién procesados...")
                                     # Guardar temporalmente el archivo procesado
                                     with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx', mode='wb') as tmp_file:
                                         excel_procesado.seek(0)
                                         tmp_file.write(excel_procesado.read())
-                                        archivo_mas_reciente = Path(tmp_file.name)
+                                        archivo_para_informe = Path(tmp_file.name)
+                                
+                                elif accion == "Generar Informe":
+                                    # Usar el archivo original subido (ya procesado previamente)
+                                    st.info("📋 Generando informe directamente del archivo subido...")
+                                    # Guardar temporalmente el archivo original
+                                    with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx', mode='wb') as tmp_file:
+                                        tmp_file.write(archivo_bytes)
+                                        archivo_para_informe = Path(tmp_file.name)
                                 
                                 try:
                                     # Crear generador de informes
                                     generador = GeneradorInformeOptimizado()
                                     
                                     # Cargar datos desde el archivo
-                                    generador.df = pd.read_excel(archivo_mas_reciente)
+                                    try:
+                                        generador.df = pd.read_excel(archivo_para_informe)
+                                    except Exception as e:
+                                        raise Exception(f"Error al leer el archivo Excel: {str(e)}. Asegúrate de que el archivo tenga el formato correcto.")
                                     
                                     # Mapear valores de la columna Sexo
                                     if 'Sexo' in generador.df.columns:
@@ -477,10 +485,9 @@ def main():
                                         raise Exception("Error al generar el informe")
                                 
                                 finally:
-                                    # Limpiar archivo temporal si se creó
-                                    if excel_procesado is not None and archivo_mas_reciente.parent == Path(tempfile.gettempdir()):
-                                        if archivo_mas_reciente.exists():
-                                            archivo_mas_reciente.unlink()
+                                    # Limpiar archivo temporal
+                                    if archivo_para_informe and archivo_para_informe.exists():
+                                        archivo_para_informe.unlink()
 
                         # Guardar en session_state
                         if excel_procesado:
