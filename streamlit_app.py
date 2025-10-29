@@ -193,14 +193,6 @@ def main():
         </div>
     """, unsafe_allow_html=True)
 
-    # Banner de privacidad
-    st.markdown("""
-        <div class="info-box">
-            <strong>🔒 Privacidad Garantizada:</strong> Todos los archivos se procesan en memoria.
-            No se almacenan datos en el servidor. Los archivos se eliminan automáticamente al cerrar la sesión.
-        </div>
-    """, unsafe_allow_html=True)
-
     st.markdown("---")
 
     # Sidebar con información
