@@ -614,69 +614,69 @@ def main():
                         st.stop()
 
                     with st.spinner(f"{accion}... Esto puede tardar unos segundos."):
-                    try:
-                        excel_procesado = None
-                        informe_word = None
+                        try:
+                            excel_procesado = None
+                            informe_word = None
 
-                        # PASO 1: Procesar datos (si corresponde)
-                        if accion in ["Ambas", "Procesar Datos"]:
-                            with st.spinner("📊 Procesando datos..."):
-                                # Guardar temporalmente el archivo (se borra automáticamente)
-                                with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp_file:
-                                    tmp_file.write(archivo_bytes)
-                                    tmp_path = Path(tmp_file.name)
-                                
-                                try:
-                                    # Seleccionar procesador según tipo
-                                    # Pasar el validador al procesador si existe
-                                    validador_a_usar = st.session_state.get('validador', None)
+                            # PASO 1: Procesar datos (si corresponde)
+                            if accion in ["Ambas", "Procesar Datos"]:
+                                with st.spinner("📊 Procesando datos..."):
+                                    # Guardar temporalmente el archivo (se borra automáticamente)
+                                    with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp_file:
+                                        tmp_file.write(archivo_bytes)
+                                        tmp_path = Path(tmp_file.name)
 
-                                    if tipo_archivo == "Triodos":
-                                        st.info("📋 Usando procesador de Triodos Bank...")
-                                        procesador = ProcesadorTriodos(validador=validador_a_usar)
-                                        # Configurar la contraseña si se proporcionó
-                                        if password:
-                                            procesador.password = password
-                                    else:
-                                        st.info("📋 Usando procesador general...")
-                                        procesador = ProcesadorRegistroRetributivo(validador=validador_a_usar)
+                                    try:
+                                        # Seleccionar procesador según tipo
+                                        # Pasar el validador al procesador si existe
+                                        validador_a_usar = st.session_state.get('validador', None)
 
-                                    # Procesar el archivo
-                                    resultado = procesador.procesar_archivo(tmp_path)
-                                    
-                                    if resultado['estado'] == 'ÉXITO':
-                                        # Leer el archivo generado desde disco
-                                        carpeta_resultados = Path(__file__).parent / "02_RESULTADOS"
-                                        archivo_resultado = carpeta_resultados / resultado['archivo_resultado']
-                                        
-                                        if archivo_resultado.exists():
-                                            # Cargar en memoria
-                                            with open(archivo_resultado, 'rb') as f:
-                                                excel_procesado = io.BytesIO(f.read())
-                                            
-                                            # IMPORTANTE: Borrar archivo del disco inmediatamente
-                                            try:
-                                                archivo_resultado.unlink()
-                                                st.info("🔒 Archivo temporal eliminado del servidor")
-                                            except Exception as e:
-                                                st.warning(f"⚠️ No se pudo eliminar archivo temporal: {e}")
-                                            
-                                            # Guardar estadísticas
-                                            st.session_state['estadisticas'] = {
-                                                'total_registros': resultado['registros_procesados'],
-                                                'tiempo_procesamiento': resultado['tiempo_procesamiento']
-                                            }
-                                            
-                                            st.success(f"✅ Datos procesados: {resultado['registros_procesados']} registros en {resultado['tiempo_procesamiento']:.1f}s")
+                                        if tipo_archivo == "Triodos":
+                                            st.info("📋 Usando procesador de Triodos Bank...")
+                                            procesador = ProcesadorTriodos(validador=validador_a_usar)
+                                            # Configurar la contraseña si se proporcionó
+                                            if password:
+                                                procesador.password = password
                                         else:
-                                            raise Exception(f"No se encontró el archivo resultado: {archivo_resultado}")
-                                    else:
-                                        raise Exception(resultado.get('error', 'Error desconocido en el procesamiento'))
-                                
-                                finally:
-                                    # Limpiar archivo temporal de entrada
-                                    if tmp_path.exists():
-                                        tmp_path.unlink()
+                                            st.info("📋 Usando procesador general...")
+                                            procesador = ProcesadorRegistroRetributivo(validador=validador_a_usar)
+
+                                        # Procesar el archivo
+                                        resultado = procesador.procesar_archivo(tmp_path)
+
+                                        if resultado['estado'] == 'ÉXITO':
+                                            # Leer el archivo generado desde disco
+                                            carpeta_resultados = Path(__file__).parent / "02_RESULTADOS"
+                                            archivo_resultado = carpeta_resultados / resultado['archivo_resultado']
+
+                                            if archivo_resultado.exists():
+                                                # Cargar en memoria
+                                                with open(archivo_resultado, 'rb') as f:
+                                                    excel_procesado = io.BytesIO(f.read())
+
+                                                # IMPORTANTE: Borrar archivo del disco inmediatamente
+                                                try:
+                                                    archivo_resultado.unlink()
+                                                    st.info("🔒 Archivo temporal eliminado del servidor")
+                                                except Exception as e:
+                                                    st.warning(f"⚠️ No se pudo eliminar archivo temporal: {e}")
+
+                                                # Guardar estadísticas
+                                                st.session_state['estadisticas'] = {
+                                                    'total_registros': resultado['registros_procesados'],
+                                                    'tiempo_procesamiento': resultado['tiempo_procesamiento']
+                                                }
+
+                                                st.success(f"✅ Datos procesados: {resultado['registros_procesados']} registros en {resultado['tiempo_procesamiento']:.1f}s")
+                                            else:
+                                                raise Exception(f"No se encontró el archivo resultado: {archivo_resultado}")
+                                        else:
+                                            raise Exception(resultado.get('error', 'Error desconocido en el procesamiento'))
+
+                                    finally:
+                                        # Limpiar archivo temporal de entrada
+                                        if tmp_path.exists():
+                                            tmp_path.unlink()
 
                         # PASO 2: Generar informe (si corresponde)
                         if accion in ["Ambas", "Generar Informe"]:
