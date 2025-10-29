@@ -391,6 +391,26 @@ def validar_y_mapear_archivo(archivo_bytes, tipo_archivo, password=None):
                 except Exception as e:
                     st.warning(f"⚠️ Error al leer la hoja '{nombre_hoja_real}': {str(e)}")
 
+            # Si hay campos faltantes, mostrar botón de confirmación y detener
+            hay_campos_faltantes = (
+                bool(resultado_hojas.get('faltantes')) or
+                bool(resultado_variables.get('faltantes')) or
+                any(r.get('faltantes') for r in [resultado_vars_comp for resultado_vars_comp in locals().get('resultado_vars_comp', {}).values()])
+            )
+
+            if hay_campos_faltantes:
+                st.markdown("---")
+                st.info("⚠️ Revisa las selecciones arriba. Cuando hayas terminado de mapear todos los campos, presiona el botón 'Confirmar Mapeo'.")
+
+                col1, col2, col3 = st.columns([1, 2, 1])
+                with col2:
+                    if st.button("✅ Confirmar Mapeo", type="primary", use_container_width=True, key="confirmar_mapeo"):
+                        # El botón fue presionado, continuar con el retorno
+                        pass
+                    else:
+                        # Botón no presionado, detener ejecución aquí
+                        st.stop()
+
             return validador, None
 
         finally:
