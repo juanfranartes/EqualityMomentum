@@ -105,8 +105,8 @@ class ProcesadorRegistroRetributivo:
             'meses_trabajados': '¿Cuántos meses ha trabajado?',
             'coef_tp': '% de jornada',
             'salario_base_efectivo': 'Salario base anual efectivo',
-            'complementos_salariales_efectivo': 'Compltos Salariales efectivo',
-            'complementos_extrasalariales_efectivo': 'Compltos Extrasalariales efectivo'
+            'complementos_salariales_efectivo': 'Complementos Salariales efectivo',
+            'complementos_extrasalariales_efectivo': 'Complementos Extrasalariales efectivo'
         }
         
         # Configuración de complementos
@@ -143,10 +143,10 @@ class ProcesadorRegistroRetributivo:
             'Salario base anual + complementos Total',
             'Salario base anual + complementos + Extrasalariales',
             'Salario base anual + complementos + Extrasalariales Total',
-            'Compltos Salariales efectivo',
-            'Compltos Salariales efectivo Total',
-            'Compltos Extrasalariales efectivo',
-            'Compltos Extrasalariales efectivo Total',
+            'Complementos Salariales efectivo',
+            'Complementos Salariales efectivo Total',
+            'Complementos Extrasalariales efectivo',
+            'Complementos Extrasalariales efectivo Total',
             'Nivel SVPT',
             'Puntos',
             'Convenio',

@@ -540,7 +540,7 @@ class ProcesadorTriodos:
 
         # Columnas para acumular (todas las que terminen en 'efectivo' o contengan complementos)
         columnas_base_efectivo = ['Salario base anual efectivo']
-        columnas_complementos_efectivos = [col for col in df.columns if 'Compltos' in col and 'efectivo' in col]
+        columnas_complementos_efectivos = [col for col in df.columns if 'Complementos' in col and 'efectivo' in col]
 
         # Calcular acumulativos para Salario base efectivo Total
         df_sorted['Salario base efectivo Total'] = df_sorted.groupby('Orden')['Salario base anual efectivo'].cumsum()
@@ -550,10 +550,10 @@ class ProcesadorTriodos:
         for col in columnas_complementos_efectivos:
             if 'Salariales' in col:
                 # Para complementos salariales - con espacio al final como en formato maestro
-                df_sorted['Compltos Salariales efectivo Total '] = df_sorted.groupby('Orden')[col].cumsum()
+                df_sorted['Complementos Salariales efectivo Total '] = df_sorted.groupby('Orden')[col].cumsum()
             elif 'Extrasalariales' in col:
                 # Para complementos extrasalariales - con espacio al final como en formato maestro
-                df_sorted['Compltos Extrasalariales efectivo Total '] = df_sorted.groupby('Orden')[col].cumsum()
+                df_sorted['Complementos Extrasalariales efectivo Total '] = df_sorted.groupby('Orden')[col].cumsum()
 
         # Calcular totales combinados acumulativos
         if 'Salario base anual + complementos' in df_sorted.columns:
@@ -746,12 +746,12 @@ class ProcesadorTriodos:
         columnas_por_tipo = self._obtener_columnas_complementos_triodos(df_equiparado)
 
         # Calcular totales
-        df_equiparado['Compltos Salariales efectivo'] = df_equiparado.apply(
+        df_equiparado['Complementos Salariales efectivo'] = df_equiparado.apply(
             lambda row: sum([row[col] for col in columnas_por_tipo['PS'] if col in row.index and pd.notna(row[col])]),
             axis=1
         )
 
-        df_equiparado['Compltos Extrasalariales efectivo'] = df_equiparado.apply(
+        df_equiparado['Complementos Extrasalariales efectivo'] = df_equiparado.apply(
             lambda row: sum([row[col] for col in columnas_por_tipo['PE'] if col in row.index and pd.notna(row[col])]),
             axis=1
         )
@@ -794,16 +794,16 @@ class ProcesadorTriodos:
             log(f"SB + Comp. Total promedio: {promedio_total:.2f} €")
 
         # Calcular totales adicionales
-        if 'Salario base anual efectivo' in df_equiparado.columns and 'Compltos Salariales efectivo' in df_equiparado.columns:
+        if 'Salario base anual efectivo' in df_equiparado.columns and 'Complementos Salariales efectivo' in df_equiparado.columns:
             df_equiparado['Salario base anual + complementos'] = (
                 df_equiparado['Salario base anual efectivo'].fillna(0) +
-                df_equiparado['Compltos Salariales efectivo'].fillna(0)
+                df_equiparado['Complementos Salariales efectivo'].fillna(0)
             )
 
-        if 'Salario base anual + complementos' in df_equiparado.columns and 'Compltos Extrasalariales efectivo' in df_equiparado.columns:
+        if 'Salario base anual + complementos' in df_equiparado.columns and 'Complementos Extrasalariales efectivo' in df_equiparado.columns:
             df_equiparado['Salario base anual + complementos + Extrasalariales'] = (
                 df_equiparado['Salario base anual + complementos'].fillna(0) +
-                df_equiparado['Compltos Extrasalariales efectivo'].fillna(0)
+                df_equiparado['Complementos Extrasalariales efectivo'].fillna(0)
             )
 
     def crear_reporte_excel(self, archivo_original, df_procesado):
@@ -857,8 +857,8 @@ class ProcesadorTriodos:
                 'Salario base anual efectivo', 'Salario base efectivo Total',
                 'Salario base anual + complementos', 'Salario base anual + complementos Total',
                 'Salario base anual + complementos + Extrasalariales', 'Salario base anual + complementos + Extrasalariales Total',
-                'Compltos Salariales efectivo', 'Compltos Salariales efectivo Total ',
-                'Compltos Extrasalariales efectivo', 'Compltos Extrasalariales efectivo Total ',
+                'Complementos Salariales efectivo', 'Complementos Salariales efectivo Total ',
+                'Complementos Extrasalariales efectivo', 'Complementos Extrasalariales efectivo Total ',
             ]
 
             # Extraer complementos efectivos (A###, PA###, PC### sin _equiparado)
