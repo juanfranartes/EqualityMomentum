@@ -61,6 +61,9 @@ class ProcesadorRegistroRetributivo:
         archivo_bytes.seek(0)
         df = pd.read_excel(archivo_bytes, sheet_name="BASE GENERAL")
 
+        # LIMPIAR ESPACIOS EN NOMBRES DE COLUMNAS
+        df.columns = df.columns.str.strip()
+
         # Buscar columna "Reg." y eliminar columnas anteriores
         if 'Reg.' in df.columns:
             indice_reg = df.columns.get_loc('Reg.')
@@ -129,6 +132,9 @@ class ProcesadorRegistroRetributivo:
         # Cargar hoja principal
         df = pd.read_excel(decrypted, sheet_name="BASE GENERAL", engine='openpyxl')
         decrypted.seek(0)
+
+        # LIMPIAR ESPACIOS EN NOMBRES DE COLUMNAS
+        df.columns = df.columns.str.strip()
 
         # Cargar configuración de complementos
         self._cargar_configuracion_complementos_triodos(decrypted)

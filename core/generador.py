@@ -28,7 +28,7 @@ COLORES_RGB = {
     'neutro': RGBColor(0, 0, 0)
 }
 
-# Mapeo de columnas
+# Mapeo de columnas (sin espacios al final)
 COLS = {
     'reg': 'Reg.',
     'sexo': 'Sexo',
@@ -42,9 +42,9 @@ COLS = {
     'sb_equiparado': 'salario_base_equiparado',
     'sbc_equiparado': 'sb_mas_comp_salariales_equiparado',
     'sbce_equiparado': 'sb_mas_comp_total_equiparado',
-    'comp_efectivo': 'Compltos Salariales efectivo Total ',
+    'comp_efectivo': 'Compltos Salariales efectivo Total',
     'comp_equiparado': 'complementos_salariales_equiparados',
-    'extra_efectivo': 'Compltos Extrasalariales efectivo Total ',
+    'extra_efectivo': 'Compltos Extrasalariales efectivo Total',
     'extra_equiparado': 'complementos_extrasalariales_equiparados',
 }
 
@@ -82,6 +82,9 @@ class GeneradorInformes:
 
         excel_bytes.seek(0)
         df = pd.read_excel(excel_bytes, sheet_name='DATOS_PROCESADOS')
+
+        # LIMPIAR ESPACIOS EN NOMBRES DE COLUMNAS
+        df.columns = df.columns.str.strip()
 
         # Crear documento (desde plantilla o en blanco)
         if self.plantilla_path:
@@ -129,65 +132,67 @@ class GeneradorInformes:
             if grafico_sbc:
                 doc.add_picture(grafico_sbc, width=Inches(3.5))
 
-        # SECCIÓN 2: Análisis por Grupo Profesional
-        doc.add_page_break()
-        doc.add_heading('2. Análisis por Grupo Profesional', 1)
+        # SECCIÓN 2: Análisis por Grupo Profesional (si existe la columna)
+        if COLS['grupo_prof'] in df_actual.columns:
+            doc.add_page_break()
+            doc.add_heading('2. Análisis por Grupo Profesional', 1)
 
-        grupos = df_actual[COLS['grupo_prof']].dropna().unique()
-        datos_grupos = []
+            grupos = df_actual[COLS['grupo_prof']].dropna().unique()
+            datos_grupos = []
 
-        for grupo in grupos:
-            stats_grupo = self._calcular_estadistico(
-                df_actual, COLS['sb_equiparado'],
-                grupo_col=COLS['grupo_prof'], grupo_valor=grupo
-            )
-            if stats_grupo and (stats_grupo['n_M'] > 1 and stats_grupo['n_H'] > 1):
-                datos_grupos.append({
-                    'categoria': str(grupo),
-                    'M': stats_grupo['M'],
-                    'H': stats_grupo['H'],
-                    'n_M': stats_grupo['n_M'],
-                    'n_H': stats_grupo['n_H']
-                })
+            for grupo in grupos:
+                stats_grupo = self._calcular_estadistico(
+                    df_actual, COLS['sb_equiparado'],
+                    grupo_col=COLS['grupo_prof'], grupo_valor=grupo
+                )
+                if stats_grupo and (stats_grupo['n_M'] > 1 and stats_grupo['n_H'] > 1):
+                    datos_grupos.append({
+                        'categoria': str(grupo),
+                        'M': stats_grupo['M'],
+                        'H': stats_grupo['H'],
+                        'n_M': stats_grupo['n_M'],
+                        'n_H': stats_grupo['n_H']
+                    })
 
-        if datos_grupos:
-            grafico_grupos = self._crear_grafico_barras(
-                datos_grupos,
-                "Salario Base por Grupo Profesional",
-                "Salario Promedio (€)"
-            )
-            if grafico_grupos:
-                doc.add_picture(grafico_grupos, width=Inches(6.5))
+            if datos_grupos:
+                grafico_grupos = self._crear_grafico_barras(
+                    datos_grupos,
+                    "Salario Base por Grupo Profesional",
+                    "Salario Promedio (€)"
+                )
+                if grafico_grupos:
+                    doc.add_picture(grafico_grupos, width=Inches(6.5))
 
-        # SECCIÓN 3: Análisis por Categoría
-        doc.add_page_break()
-        doc.add_heading('3. Análisis por Categoría Profesional', 1)
+        # SECCIÓN 3: Análisis por Categoría (si existe la columna)
+        if COLS['nivel_convenio'] in df_actual.columns:
+            doc.add_page_break()
+            doc.add_heading('3. Análisis por Categoría Profesional', 1)
 
-        categorias = df_actual[COLS['nivel_convenio']].dropna().unique()
-        datos_categorias = []
+            categorias = df_actual[COLS['nivel_convenio']].dropna().unique()
+            datos_categorias = []
 
-        for cat in categorias:
-            stats_cat = self._calcular_estadistico(
-                df_actual, COLS['sb_equiparado'],
-                grupo_col=COLS['nivel_convenio'], grupo_valor=cat
-            )
-            if stats_cat and (stats_cat['n_M'] > 1 and stats_cat['n_H'] > 1):
-                datos_categorias.append({
-                    'categoria': str(cat),
-                    'M': stats_cat['M'],
-                    'H': stats_cat['H'],
-                    'n_M': stats_cat['n_M'],
-                    'n_H': stats_cat['n_H']
-                })
+            for cat in categorias:
+                stats_cat = self._calcular_estadistico(
+                    df_actual, COLS['sb_equiparado'],
+                    grupo_col=COLS['nivel_convenio'], grupo_valor=cat
+                )
+                if stats_cat and (stats_cat['n_M'] > 1 and stats_cat['n_H'] > 1):
+                    datos_categorias.append({
+                        'categoria': str(cat),
+                        'M': stats_cat['M'],
+                        'H': stats_cat['H'],
+                        'n_M': stats_cat['n_M'],
+                        'n_H': stats_cat['n_H']
+                    })
 
-        if datos_categorias:
-            grafico_cat = self._crear_grafico_barras(
-                datos_categorias,
-                "Salario Base por Categoría Profesional",
-                "Salario Promedio (€)"
-            )
-            if grafico_cat:
-                doc.add_picture(grafico_cat, width=Inches(6.5))
+            if datos_categorias:
+                grafico_cat = self._crear_grafico_barras(
+                    datos_categorias,
+                    "Salario Base por Categoría Profesional",
+                    "Salario Promedio (€)"
+                )
+                if grafico_cat:
+                    doc.add_picture(grafico_cat, width=Inches(6.5))
 
         # SECCIÓN 4: Tabla Resumen
         doc.add_page_break()
