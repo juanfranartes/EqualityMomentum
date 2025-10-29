@@ -29,51 +29,136 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# CSS personalizado para mejorar la estética
+# CSS personalizado con estilo corporativo de EqualityMomentum
 st.markdown("""
     <style>
+    /* Importar fuentes de Google Fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Lusitana:wght@400;700&family=Work+Sans:wght@300;400;500;600;700&display=swap');
+    
+    /* Variables de colores corporativos */
+    :root {
+        --azul-corporativo: #1f3c89;
+        --naranja-corporativo: #ff5c39;
+        --blanco-corporativo: #ffffff;
+    }
+    
+    /* Estilos generales */
     .main {
         padding: 2rem;
+        font-family: 'Work Sans', sans-serif;
+        font-size: 18px;
     }
+    
+    /* Títulos con tipografía Lusitana */
+    h1, h2, h3, h4, h5, h6 {
+        font-family: 'Lusitana', serif !important;
+        color: var(--azul-corporativo) !important;
+    }
+    
+    h1 {
+        font-size: 48px !important;
+    }
+    
+    h2 {
+        font-size: 36px !important;
+    }
+    
+    h3 {
+        font-size: 28px !important;
+    }
+    
+    /* Textos con Work Sans */
+    p, div, span, label {
+        font-family: 'Work Sans', sans-serif;
+        font-size: 18px;
+    }
+    
+    /* Botones con colores corporativos */
     .stButton>button {
         width: 100%;
-        background-color: #1e4389;
-        color: white;
-        font-weight: bold;
+        background-color: var(--azul-corporativo);
+        color: var(--blanco-corporativo);
+        font-family: 'Work Sans', sans-serif;
+        font-weight: 600;
+        font-size: 18px;
         padding: 0.75rem;
         border-radius: 8px;
         border: none;
+        transition: all 0.3s ease;
     }
+    
     .stButton>button:hover {
-        background-color: #ea5d41;
+        background-color: var(--naranja-corporativo);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(31, 60, 137, 0.3);
     }
+    
+    /* Botón primario */
+    .stButton>button[kind="primary"] {
+        background-color: var(--naranja-corporativo);
+    }
+    
+    .stButton>button[kind="primary"]:hover {
+        background-color: var(--azul-corporativo);
+    }
+    
+    /* Sección de carga con estilo corporativo */
     .upload-section {
-        border: 2px dashed #1e4389;
+        border: 2px dashed var(--azul-corporativo);
         border-radius: 10px;
         padding: 2rem;
         text-align: center;
-        background-color: #f8f9fa;
+        background-color: rgba(31, 60, 137, 0.05);
     }
+    
+    /* Cajas informativas */
     .info-box {
-        background-color: #e3f2fd;
-        border-left: 4px solid #1e4389;
+        background-color: rgba(31, 60, 137, 0.1);
+        border-left: 4px solid var(--azul-corporativo);
         padding: 1rem;
         margin: 1rem 0;
         border-radius: 4px;
+        font-family: 'Work Sans', sans-serif;
     }
+    
     .success-box {
-        background-color: #e8f5e9;
+        background-color: rgba(76, 175, 80, 0.1);
         border-left: 4px solid #4caf50;
         padding: 1rem;
         margin: 1rem 0;
         border-radius: 4px;
+        font-family: 'Work Sans', sans-serif;
     }
+    
     .warning-box {
-        background-color: #fff3e0;
-        border-left: 4px solid #ff9800;
+        background-color: rgba(255, 92, 57, 0.1);
+        border-left: 4px solid var(--naranja-corporativo);
         padding: 1rem;
         margin: 1rem 0;
         border-radius: 4px;
+        font-family: 'Work Sans', sans-serif;
+    }
+    
+    /* Sidebar */
+    .css-1d391kg {
+        background-color: rgba(31, 60, 137, 0.05);
+    }
+    
+    /* Enlaces */
+    a {
+        color: var(--naranja-corporativo);
+        text-decoration: none;
+    }
+    
+    a:hover {
+        color: var(--azul-corporativo);
+        text-decoration: underline;
+    }
+    
+    /* Separadores */
+    hr {
+        border-color: var(--azul-corporativo);
+        opacity: 0.3;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -88,13 +173,25 @@ def limpiar_sesion():
 
 
 def main():
-    # Header
-    col1, col2 = st.columns([1, 4])
-    with col1:
-        st.markdown("# ⚖️")
-    with col2:
-        st.title("EqualityMomentum")
-        st.markdown("**Procesamiento de Registros Retributivos**")
+    # Header con logotipo corporativo
+    st.markdown("""
+        <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 2rem;">
+            <img src="https://equalitymomentum.com/wp-content/uploads/2024/04/equality-momentum-imagotipo.svg" 
+                 alt="EqualityMomentum" 
+                 style="max-width: 400px; width: 100%; height: auto;">
+        </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("""
+        <div style="text-align: center; margin-bottom: 2rem;">
+            <h1 style="font-family: 'Lusitana', serif; font-size: 48px; color: #1f3c89; margin-bottom: 0.5rem;">
+                Procesamiento de Registros Retributivos
+            </h1>
+            <p style="font-family: 'Work Sans', sans-serif; font-size: 18px; color: #666;">
+                Herramienta profesional para análisis de igualdad retributiva
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
 
     # Banner de privacidad
     st.markdown("""
@@ -368,12 +465,19 @@ def main():
                 </div>
             """, unsafe_allow_html=True)
 
-    # Footer
+    # Footer con estilo corporativo
     st.markdown("---")
     st.markdown("""
-        <div style="text-align: center; color: #666; font-size: 0.9em; padding: 2rem 0;">
-            <strong>EqualityMomentum</strong> v2.0 | Registro Retributivo |
-            🔒 Sin almacenamiento de datos | Procesamiento en memoria
+        <div style="text-align: center; padding: 2rem 0;">
+            <p style="font-family: 'Work Sans', sans-serif; color: #1f3c89; font-size: 16px; font-weight: 600; margin-bottom: 0.5rem;">
+                <strong>EqualityMomentum</strong> v2.0 | Registro Retributivo
+            </p>
+            <p style="font-family: 'Work Sans', sans-serif; color: #666; font-size: 14px;">
+                🔒 Sin almacenamiento de datos | Procesamiento en memoria
+            </p>
+            <p style="font-family: 'Work Sans', sans-serif; color: #999; font-size: 12px; margin-top: 1rem;">
+                © 2025 EqualityMomentum - Todos los derechos reservados
+            </p>
         </div>
     """, unsafe_allow_html=True)
 
