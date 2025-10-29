@@ -6,6 +6,7 @@ Versión refactorizada sin redundancia con funciones reutilizables
 
 import sys
 import os
+import io
 from pathlib import Path
 from datetime import datetime
 import pandas as pd
@@ -1737,6 +1738,79 @@ class GeneradorInformeOptimizado:
         except Exception as e:
             log(f"Error al cargar datos: {e}", 'ERROR')
             return False
+
+    def cargar_datos_desde_bytes(self, excel_bytes):
+        """
+        Carga datos desde BytesIO para uso en Streamlit
+        
+        Args:
+            excel_bytes: BytesIO o bytes del Excel procesado
+        
+        Returns:
+            bool: True si se cargó correctamente
+        """
+        try:
+            if isinstance(excel_bytes, bytes):
+                excel_bytes = io.BytesIO(excel_bytes)
+            
+            excel_bytes.seek(0)
+            self.df = pd.read_excel(excel_bytes, sheet_name='DATOS_PROCESADOS')
+            
+            # Limpiar espacios en nombres de columnas
+            self.df.columns = self.df.columns.str.strip()
+            
+            # Mapear valores de la columna Sexo a formato corto
+            if 'Sexo' in self.df.columns:
+                self.df['Sexo'] = self.df['Sexo'].map({
+                    'Hombres': 'H',
+                    'Mujeres': 'M'
+                }).fillna(self.df['Sexo'])
+            
+            log(f"Datos cargados desde BytesIO: {len(self.df)} registros", 'OK')
+            return True
+        except Exception as e:
+            log(f"Error al cargar datos desde BytesIO: {e}", 'ERROR')
+            return False
+
+    def generar_informe_bytes(self, tipo_informe='CONSOLIDADO'):
+        """
+        Genera el informe Word y lo retorna como BytesIO para Streamlit
+        
+        Args:
+            tipo_informe: 'CONSOLIDADO', 'PROMEDIO', 'MEDIANA', o 'COMPLEMENTOS'
+        
+        Returns:
+            BytesIO con el documento Word generado o None si hay error
+        """
+        if self.df is None:
+            log("No hay datos cargados", 'ERROR')
+            return None
+        
+        log(f"Generando informe tipo: {tipo_informe}")
+        
+        # Generar el informe normalmente
+        if not self.generar_informe(tipo_informe):
+            return None
+        
+        # Leer el archivo generado y convertirlo a BytesIO
+        try:
+            if self.ruta_salida and self.ruta_salida.exists():
+                with open(self.ruta_salida, 'rb') as f:
+                    doc_bytes = io.BytesIO(f.read())
+                
+                # Limpiar el archivo temporal
+                try:
+                    self.ruta_salida.unlink()
+                except:
+                    pass
+                
+                return doc_bytes
+            else:
+                log("No se encontró el archivo generado", 'ERROR')
+                return None
+        except Exception as e:
+            log(f"Error al convertir informe a BytesIO: {e}", 'ERROR')
+            return None
 
     def generar_informe(self, tipo_informe='CONSOLIDADO'):
         """

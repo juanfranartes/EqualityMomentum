@@ -7,11 +7,18 @@ Versión web sin almacenamiento de datos
 
 import streamlit as st
 import io
+import sys
+from pathlib import Path
 from datetime import datetime
 
-# Importar módulos core
+# Agregar la ruta de 04_SCRIPTS al path para importar el generador optimizado
+scripts_path = Path(__file__).parent / '04_SCRIPTS'
+if str(scripts_path) not in sys.path:
+    sys.path.insert(0, str(scripts_path))
+
+# Importar módulos
 from core.procesador import ProcesadorRegistroRetributivo
-from core.generador import GeneradorInformes
+from generar_informe_optimizado import GeneradorInformeOptimizado
 
 
 # Configuración de la página
@@ -246,10 +253,22 @@ def main():
                                     excel_procesado.seek(0)
                                     excel_para_informe = excel_procesado
 
-                                generador = GeneradorInformes()
-                                informe_word = generador.generar_informe_completo(excel_para_informe)
-
-                                st.success("✅ Informe generado correctamente")
+                                # Usar el generador optimizado
+                                generador = GeneradorInformeOptimizado()
+                                
+                                # Cargar datos desde BytesIO
+                                if generador.cargar_datos_desde_bytes(excel_para_informe):
+                                    # Generar informe (por defecto CONSOLIDADO)
+                                    informe_word = generador.generar_informe_bytes('CONSOLIDADO')
+                                    
+                                    if informe_word:
+                                        st.success("✅ Informe generado correctamente")
+                                    else:
+                                        st.error("❌ Error al generar el informe Word")
+                                        informe_word = None
+                                else:
+                                    st.error("❌ Error al cargar los datos para el informe")
+                                    informe_word = None
 
                         # Guardar en session_state
                         if excel_procesado:
