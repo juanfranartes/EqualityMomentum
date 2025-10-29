@@ -125,6 +125,7 @@ class ProcesadorRegistroRetributivo:
             'Sexo',
             'Inicio de Sit. Contractual',
             'Final de Sit. Contractual',
+            '¿Es una persona con discapacidad?',
             'Ascendientes con discapacidad',
             'Grupo profesional',
             'Subgrupo profesional',
@@ -147,6 +148,8 @@ class ProcesadorRegistroRetributivo:
             'Complementos Salariales efectivo Total',
             'Complementos Extrasalariales efectivo',
             'Complementos Extrasalariales efectivo Total',
+            'Compltos Salariales efectivo Total',
+            'Compltos Extrasalariales efectivo Total',
             'Nivel SVPT',
             'Puntos',
             'Convenio',
@@ -470,6 +473,39 @@ class ProcesadorRegistroRetributivo:
             log(f"Error procesando {ruta_archivo.name}: {str(e)}", 'ERROR')
             raise
 
+    def calcular_complementos_efectivos(self, df):
+        """Calcula las columnas de complementos efectivos como suma de PS y PE"""
+        log("Calculando complementos efectivos totales...", 'PROCESO')
+
+        # Obtener columnas PS y PE (sin las equiparadas)
+        columnas_ps = [col for col in df.columns if re.match(r'^PS\d+', col) and not col.endswith('_equiparado')]
+        columnas_pe = [col for col in df.columns if re.match(r'^PE\d+', col) and not col.endswith('_equiparado')]
+
+        # Calcular Complementos Salariales efectivo (suma de todas las PS)
+        if 'Complementos Salariales efectivo' not in df.columns and columnas_ps:
+            df['Complementos Salariales efectivo'] = df[columnas_ps].fillna(0).sum(axis=1)
+            promedio_cs = df['Complementos Salariales efectivo'].mean()
+            log(f"Complementos Salariales efectivo calculado: {promedio_cs:.2f} € (suma de {len(columnas_ps)} columnas PS)")
+        elif 'Complementos Salariales efectivo' in df.columns:
+            log("Complementos Salariales efectivo ya existe en los datos")
+
+        # Calcular Complementos Extrasalariales efectivo (suma de todas las PE)
+        if 'Complementos Extrasalariales efectivo' not in df.columns and columnas_pe:
+            df['Complementos Extrasalariales efectivo'] = df[columnas_pe].fillna(0).sum(axis=1)
+            promedio_ce = df['Complementos Extrasalariales efectivo'].mean()
+            log(f"Complementos Extrasalariales efectivo calculado: {promedio_ce:.2f} € (suma de {len(columnas_pe)} columnas PE)")
+        elif 'Complementos Extrasalariales efectivo' in df.columns:
+            log("Complementos Extrasalariales efectivo ya existe en los datos")
+
+        # Renombrar columnas abreviadas "Compltos" a "Complementos" para consistencia
+        if 'Compltos Salariales efectivo Total' in df.columns:
+            df.rename(columns={'Compltos Salariales efectivo Total': 'Complementos Salariales efectivo Total'}, inplace=True)
+            log("Renombrada: 'Compltos Salariales efectivo Total' → 'Complementos Salariales efectivo Total'")
+
+        if 'Compltos Extrasalariales efectivo Total' in df.columns:
+            df.rename(columns={'Compltos Extrasalariales efectivo Total': 'Complementos Extrasalariales efectivo Total'}, inplace=True)
+            log("Renombrada: 'Compltos Extrasalariales efectivo Total' → 'Complementos Extrasalariales efectivo Total'")
+
     def procesar_equiparacion(self, df, columnas_encontradas):
         """Procesa la equiparación de todos los valores"""
         log("Iniciando cálculos de equiparación...", 'PROCESO')
@@ -508,7 +544,10 @@ class ProcesadorRegistroRetributivo:
         sb_equiparado_promedio = df_equiparado['salario_base_equiparado'].mean()
         log(f"SB efectivo promedio: {sb_efectivo_promedio:.2f} €")
         log(f"SB equiparado promedio: {sb_equiparado_promedio:.2f} €")
-        
+
+        # Calcular columnas de complementos efectivos si no existen
+        self.calcular_complementos_efectivos(df_equiparado)
+
         # Procesar complementos individuales
         complementos_procesados = self.procesar_complementos_individuales(df_equiparado, col_meses)
         
@@ -549,30 +588,28 @@ class ProcesadorRegistroRetributivo:
         # Obtener columnas de complementos
         columnas_por_tipo = self._obtener_columnas_complementos(df_equiparado)
 
-        # Diccionario para renombrar todas las columnas (procesables y no procesables)
-        renombrar_dict = {}
-
         for tipo, columnas in columnas_por_tipo.items():
             log(f"Columnas {tipo} encontradas: {len(columnas)}")
 
             for col_comp in columnas:
                 es_normalizable, es_anualizable, _, nombre_comp = self.obtener_config_complemento(col_comp)
 
-                # Crear nombre completo para TODAS las columnas (tengan o no datos)
-                # Solo renombrar si el nombre del complemento no está ya incluido en la columna
-                if nombre_comp and nombre_comp not in col_comp:
-                    nombre_completo = f"{col_comp} {nombre_comp}".strip()
-                    renombrar_dict[col_comp] = nombre_completo
+                # Extraer código base (ej: "PS2" de "PS2" o "PS 2")
+                match = re.match(r'^(P[SE])\s*(\d+)', col_comp)
+                if match:
+                    codigo_base = f"{match.group(1)}{match.group(2)}"
                 else:
-                    nombre_completo = col_comp
+                    codigo_base = col_comp
 
                 # Solo procesar (equiparar) si es normalizable O anualizable
                 if es_normalizable or es_anualizable:
                     datos_no_nulos = df_equiparado[col_comp].dropna()
                     if len(datos_no_nulos) > 0:
-                        col_equiparado = f"{nombre_completo}_equiparado"
+                        # Usar código base para la columna equiparada (ej: "PS2_equiparado")
+                        col_equiparado = f"{codigo_base}_equiparado"
 
-                        log(f"  {nombre_completo}: {len(datos_no_nulos)} registros (N:{es_normalizable}, A:{es_anualizable})")
+                        nombre_display = f"{codigo_base} {nombre_comp}" if nombre_comp else codigo_base
+                        log(f"  {nombre_display}: {len(datos_no_nulos)} registros (N:{es_normalizable}, A:{es_anualizable})")
 
                         # VECTORIZACIÓN: Calcular complemento equiparado sin apply
                         comp_efectivo = df_equiparado[col_comp].fillna(0)
@@ -601,24 +638,26 @@ class ProcesadorRegistroRetributivo:
                         prom_equiparado = df_equiparado[col_equiparado].mean()
                         log(f"    Efectivo: {prom_efectivo:.2f} € | Equiparado: {prom_equiparado:.2f} €")
 
-        # Renombrar TODAS las columnas de complementos al final
-        if renombrar_dict:
-            df_equiparado.rename(columns=renombrar_dict, inplace=True)
-            log(f"Renombradas {len(renombrar_dict)} columnas de complementos", 'OK')
-
         return complementos_procesados
 
     def _calcular_total_correcto(self, row, columnas_base, df_equiparado):
         """Calcula total: equiparado si es procesable, efectivo si no"""
         total = 0
         for col_base in columnas_base:
-            # Manejar tanto columnas renombradas como originales
+            # Verificar que la columna existe
             if col_base not in row.index:
                 continue
 
             valor_original = row[col_base]
             if pd.notna(valor_original) and valor_original != 0:
-                col_equiparada = f"{col_base}_equiparado"
+                # Extraer código base para buscar la columna equiparada
+                match = re.match(r'^(P[SE])\s*(\d+)', col_base)
+                if match:
+                    codigo_base = f"{match.group(1)}{match.group(2)}"
+                else:
+                    codigo_base = col_base
+
+                col_equiparada = f"{codigo_base}_equiparado"
                 if col_equiparada in df_equiparado.columns:
                     valor_equiparado = row[col_equiparada]
                     total += valor_equiparado if pd.notna(valor_equiparado) else valor_original
