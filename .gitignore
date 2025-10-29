@@ -34,8 +34,9 @@ Instaladores/
 *.exe
 *.msi
 
-# Documentación interna
-00_DOCUMENTACION/
+# Documentación interna (solo incluir .docx)
+00_DOCUMENTACION/*
+!00_DOCUMENTACION/**/*.docx
 
 # Datos sensibles
 01_DATOS_SIN_PROCESAR/*.xlsx
