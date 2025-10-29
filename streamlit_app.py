@@ -437,6 +437,15 @@ def main():
                                     except Exception as e:
                                         raise Exception(f"Error al leer el archivo Excel: {str(e)}. Asegúrate de que el archivo tenga el formato correcto.")
                                     
+                                    # Normalizar nombres de columnas (corregir typos antiguos)
+                                    column_fixes = {
+                                        'Compltos Salariales efectivo': 'Complementos Salariales efectivo',
+                                        'Compltos Salariales efectivo Total ': 'Complementos Salariales efectivo Total ',
+                                        'Compltos Extrasalariales efectivo': 'Complementos Extrasalariales efectivo',
+                                        'Compltos Extrasalariales efectivo Total ': 'Complementos Extrasalariales efectivo Total '
+                                    }
+                                    generador.df.rename(columns=column_fixes, inplace=True)
+                                    
                                     # Mapear valores de la columna Sexo
                                     if 'Sexo' in generador.df.columns:
                                         generador.df['Sexo'] = generador.df['Sexo'].map({

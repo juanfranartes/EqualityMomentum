@@ -252,6 +252,12 @@ def calcular_estadistico(df, columna_salario, tipo_calculo, metodo='media', grup
     if df_filtrado.empty:
         return {'M': 0, 'H': 0, 'n_M': 0, 'n_H': 0}
 
+    # Verificar que la columna existe en el DataFrame
+    if columna_salario not in df.columns:
+        log(f"ERROR: Columna '{columna_salario}' no encontrada en el DataFrame", 'ERROR')
+        log(f"Columnas disponibles que contienen 'Complementos': {[col for col in df.columns if 'Complementos' in col or 'complementos' in col]}", 'ERROR')
+        raise KeyError(f"La columna '{columna_salario}' no existe en los datos. Puede que necesites regenerar el archivo REPORTE con los datos actualizados.")
+
     # Calcular por género
     resultado = {}
     for sexo in ['M', 'H']:
@@ -1724,6 +1730,16 @@ class GeneradorInformeOptimizado:
 
         try:
             self.df = pd.read_excel(archivo)
+
+            # Normalizar nombres de columnas (corregir typos antiguos)
+            column_fixes = {
+                'Compltos Salariales efectivo': 'Complementos Salariales efectivo',
+                'Compltos Salariales efectivo Total ': 'Complementos Salariales efectivo Total ',
+                'Compltos Extrasalariales efectivo': 'Complementos Extrasalariales efectivo',
+                'Compltos Extrasalariales efectivo Total ': 'Complementos Extrasalariales efectivo Total '
+            }
+            
+            self.df.rename(columns=column_fixes, inplace=True)
 
             # Mapear valores de la columna Sexo a formato corto
             if 'Sexo' in self.df.columns:
