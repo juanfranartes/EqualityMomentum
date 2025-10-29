@@ -248,18 +248,20 @@ def validar_y_mapear_archivo(archivo_bytes, tipo_archivo, password=None):
 
                 mapeo_hojas_usuario = {}
                 for hoja_faltante in resultado_hojas['faltantes']:
-                    st.markdown(f"**Hoja esperada:** `{hoja_faltante}`")
+                    # Las hojas siempre son obligatorias
+                    st.markdown(f"**Hoja esperada:** `{hoja_faltante}` ⚠️ **OBLIGATORIA**")
 
-                    opciones_disponibles = ["⛔ No mapear (omitir)"] + resultado_hojas['disponibles']
+                    opciones_disponibles = ["[Selecciona una opción]"] + resultado_hojas['disponibles']
 
                     seleccion = st.selectbox(
                         f"Selecciona la hoja real para '{hoja_faltante}':",
                         options=opciones_disponibles,
+                        index=0,
                         key=f"hoja_{hoja_faltante}",
                         help=f"Selecciona qué hoja de tu archivo corresponde a '{hoja_faltante}'"
                     )
 
-                    if seleccion != "⛔ No mapear (omitir)":
+                    if seleccion != "[Selecciona una opción]":
                         mapeo_hojas_usuario[hoja_faltante] = seleccion
 
                     st.markdown("---")
@@ -299,18 +301,28 @@ def validar_y_mapear_archivo(archivo_bytes, tipo_archivo, password=None):
 
                 mapeo_variables_usuario = {}
                 for clave_interna, nombre_esperado in resultado_variables['faltantes'].items():
-                    st.markdown(f"**Variable esperada:** `{nombre_esperado}` (clave interna: `{clave_interna}`)")
+                    # Verificar si es obligatoria
+                    es_obligatoria = clave_interna in validador.variables_obligatorias
+                    etiqueta_obligatoria = " ⚠️ **OBLIGATORIA**" if es_obligatoria else " (opcional)"
 
-                    opciones_disponibles = ["⛔ No mapear (omitir)"] + resultado_variables['disponibles']
+                    st.markdown(f"**Variable esperada:** `{nombre_esperado}`{etiqueta_obligatoria}")
+
+                    if es_obligatoria:
+                        opciones_disponibles = ["[Selecciona una opción]"] + resultado_variables['disponibles']
+                        index_default = 0
+                    else:
+                        opciones_disponibles = ["⛔ No mapear (omitir)"] + resultado_variables['disponibles']
+                        index_default = 0
 
                     seleccion = st.selectbox(
                         f"Selecciona la columna real para '{nombre_esperado}':",
                         options=opciones_disponibles,
+                        index=index_default,
                         key=f"var_{clave_interna}",
                         help=f"Selecciona qué columna de tu archivo corresponde a '{nombre_esperado}'"
                     )
 
-                    if seleccion != "⛔ No mapear (omitir)":
+                    if seleccion not in ["⛔ No mapear (omitir)", "[Selecciona una opción]"]:
                         mapeo_variables_usuario[clave_interna] = seleccion
 
                     st.markdown("---")
@@ -318,19 +330,14 @@ def validar_y_mapear_archivo(archivo_bytes, tipo_archivo, password=None):
                 # Aplicar mapeo de variables
                 validador.aplicar_mapeo_variables(mapeo_variables_usuario)
 
-                # Verificar que se hayan mapeado todas las variables críticas
-                # Para el procesador general, son críticas: meses_trabajados, coef_tp, salario_base_efectivo
-                variables_criticas_minimas = ['meses_trabajados', 'coef_tp', 'salario_base_efectivo']
-                if tipo_archivo == "Triodos":
-                    variables_criticas_minimas = ['num_personal', 'fecha_inicio_sit', 'fecha_fin_sit', 'salario_base_efectivo']
-
-                variables_criticas_sin_mapear = [
-                    clave for clave in variables_criticas_minimas
+                # Verificar que se hayan mapeado todas las variables obligatorias
+                variables_obligatorias_sin_mapear = [
+                    clave for clave in validador.variables_obligatorias
                     if clave in resultado_variables['faltantes'] and clave not in mapeo_variables_usuario
                 ]
 
-                if variables_criticas_sin_mapear:
-                    nombres_esperados = [validador.variables_criticas[c] for c in variables_criticas_sin_mapear]
+                if variables_obligatorias_sin_mapear:
+                    nombres_esperados = [validador.variables_criticas[c] for c in variables_obligatorias_sin_mapear]
                     return None, f"Las siguientes variables son obligatorias y no fueron mapeadas: {', '.join(nombres_esperados)}"
 
             # PASO 3: Validar variables de hojas de complementos
@@ -358,18 +365,20 @@ def validar_y_mapear_archivo(archivo_bytes, tipo_archivo, password=None):
 
                         mapeo_comp_usuario = {}
                         for clave_interna, nombre_esperado in resultado_vars_comp['faltantes'].items():
-                            st.markdown(f"**Variable esperada:** `{nombre_esperado}` en hoja `{nombre_hoja_config}`")
+                            # Las columnas de configuración de complementos son OBLIGATORIAS
+                            st.markdown(f"**Variable esperada:** `{nombre_esperado}` en hoja `{nombre_hoja_config}` ⚠️ **OBLIGATORIA**")
 
-                            opciones_disponibles = ["⛔ No mapear (omitir)"] + resultado_vars_comp['disponibles']
+                            opciones_disponibles = ["[Selecciona una opción]"] + resultado_vars_comp['disponibles']
 
                             seleccion = st.selectbox(
                                 f"Selecciona la columna real para '{nombre_esperado}':",
                                 options=opciones_disponibles,
+                                index=0,
                                 key=f"comp_{nombre_hoja_config}_{clave_interna}",
                                 help=f"Columna que corresponde a '{nombre_esperado}' en la hoja '{nombre_hoja_config}'"
                             )
 
-                            if seleccion != "⛔ No mapear (omitir)":
+                            if seleccion != "[Selecciona una opción]":
                                 mapeo_comp_usuario[clave_interna] = seleccion
 
                             st.markdown("---")
@@ -516,6 +525,12 @@ def main():
     st.markdown('</div>', unsafe_allow_html=True)
 
     if archivo_subido is not None:
+        # Limpiar validación anterior si se sube un nuevo archivo
+        if 'ultimo_archivo' in st.session_state and st.session_state['ultimo_archivo'] != archivo_subido.name:
+            st.session_state.pop('validacion_completa', None)
+            st.session_state.pop('validador', None)
+
+        st.session_state['ultimo_archivo'] = archivo_subido.name
         st.success(f"✅ Archivo cargado: **{archivo_subido.name}** ({archivo_subido.size / 1024:.2f} KB)")
 
         # Validar tamaño (50MB máximo)
@@ -526,25 +541,18 @@ def main():
         st.markdown("---")
 
         # Botón de procesamiento
-        st.header("3️⃣ Procesar Datos")
+        st.header("3️⃣ Validar y Procesar Datos")
 
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            # Cambiar el texto del botón según la acción
-            texto_boton = {
-                "Ambas": "🚀 Procesar y Generar Informe",
-                "Procesar Datos": "📊 Procesar Datos",
-                "Generar Informe": "📄 Generar Informe"
-            }
+        # PASO 1: Validación y mapeo (si no se ha hecho)
+        if 'validacion_completa' not in st.session_state:
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                if st.button("🔍 Validar Archivo y Mapear Campos", type="secondary", use_container_width=True):
+                    # Validar que se haya introducido contraseña si el archivo está protegido
+                    if archivo_protegido and not password:
+                        st.error("❌ Por favor, introduce la contraseña del archivo antes de validar.")
+                        st.stop()
 
-            if st.button(texto_boton[accion], type="primary"):
-                # Validar que se haya introducido contraseña si el archivo está protegido
-                if archivo_protegido and not password:
-                    st.error("❌ Por favor, introduce la contraseña del archivo antes de procesar.")
-                    st.stop()
-
-                # PASO PREVIO: Validar y mapear campos
-                with st.spinner("🔍 Validando archivo y detectando campos..."):
                     # Leer archivo como bytes
                     archivo_bytes = archivo_subido.read()
                     archivo_subido.seek(0)  # Reset para poder leerlo después
@@ -557,10 +565,55 @@ def main():
                         st.stop()
 
                     if validador:
-                        st.success("✅ Validación completada. Campos mapeados correctamente.")
                         st.session_state['validador'] = validador
+                        st.session_state['validacion_completa'] = True
+                        st.success("✅ Validación completada. Revisa el mapeo y luego presiona 'Procesar'.")
+                        st.rerun()
 
-                with st.spinner(f"{accion}... Esto puede tardar unos segundos."):
+        # PASO 2: Procesamiento (solo si la validación está completa)
+        if st.session_state.get('validacion_completa', False):
+            st.success("✅ Archivo validado. Campos mapeados correctamente.")
+
+            # Mostrar resumen del mapeo
+            if 'validador' in st.session_state:
+                validador = st.session_state['validador']
+
+                with st.expander("📋 Ver mapeo aplicado", expanded=False):
+                    if validador.mapeo_hojas:
+                        st.markdown("**Hojas mapeadas:**")
+                        for esperado, real in validador.mapeo_hojas.items():
+                            st.markdown(f"- `{esperado}` → `{real}`")
+
+                    if validador.mapeo_variables:
+                        st.markdown("**Variables mapeadas:**")
+                        for clave, real in validador.mapeo_variables.items():
+                            nombre_esperado = validador.variables_criticas.get(clave, clave)
+                            st.markdown(f"- `{nombre_esperado}` → `{real}`")
+
+            # Botón para reiniciar validación
+            col_reset1, col_reset2, col_reset3 = st.columns([1, 2, 1])
+            with col_reset2:
+                if st.button("🔄 Reiniciar Validación", type="secondary", use_container_width=True, help="Volver a validar y mapear campos"):
+                    st.session_state.pop('validacion_completa', None)
+                    st.session_state.pop('validador', None)
+                    st.rerun()
+
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                # Cambiar el texto del botón según la acción
+                texto_boton = {
+                    "Ambas": "🚀 Procesar y Generar Informe",
+                    "Procesar Datos": "📊 Procesar Datos",
+                    "Generar Informe": "📄 Generar Informe"
+                }
+
+                if st.button(texto_boton[accion], type="primary", use_container_width=True):
+                    # Validar que se haya introducido contraseña si el archivo está protegido
+                    if archivo_protegido and not password:
+                        st.error("❌ Por favor, introduce la contraseña del archivo antes de procesar.")
+                        st.stop()
+
+                    with st.spinner(f"{accion}... Esto puede tardar unos segundos."):
                     try:
                         excel_procesado = None
                         informe_word = None

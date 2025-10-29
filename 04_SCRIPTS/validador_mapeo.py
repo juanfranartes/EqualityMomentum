@@ -161,12 +161,34 @@ class ValidadorMapeoGeneral(ValidadorMapeo):
 
         # Variables críticas requeridas (mapeo del archivo procesar_datos.py)
         self.variables_criticas = {
+            # Variables críticas obligatorias
             'meses_trabajados': '¿Cuántos meses ha trabajado?',
             'coef_tp': '% de jornada',
             'salario_base_efectivo': 'Salario base anual efectivo',
+
+            # Variables importantes (se validarán pero pueden omitirse)
+            'orden': 'Orden',
+            'sexo': 'Sexo',
+            'inicio_sit_contractual': 'Inicio de Sit. Contractual',
+            'final_sit_contractual': 'Final de Sit. Contractual',
+            'grupo_profesional': 'Grupo profesional',
+            'categoria_profesional': 'Categoría profesional',
+            'puesto_trabajo': 'Puesto de trabajo',
+            'nivel_convenio': 'Nivel Convenio Colectivo',
+            'departamento': 'Departamento',
+            'nivel_svpt': 'Nivel SVPT',
+
+            # Complementos
             'complementos_salariales_efectivo': 'Complementos Salariales efectivo',
             'complementos_extrasalariales_efectivo': 'Complementos Extrasalariales efectivo'
         }
+
+        # Lista de variables que son OBLIGATORIAS (no se pueden omitir)
+        self.variables_obligatorias = [
+            'meses_trabajados',
+            'coef_tp',
+            'salario_base_efectivo'
+        ]
 
         # Columnas de configuración de complementos
         self.columnas_config_complementos = {
@@ -194,10 +216,14 @@ class ValidadorMapeoTriodos(ValidadorMapeo):
 
         # Variables críticas requeridas (mapeo del archivo procesar_datos_triodos.py)
         self.variables_criticas = {
+            # Variables críticas obligatorias
             'num_personal': 'Nº personal',
-            'sexo': 'Sexo',
             'fecha_inicio_sit': 'Fecha inicio sit.',
             'fecha_fin_sit': 'Fecha fin sit.',
+            'salario_base_efectivo': 'A154-Salario base de nivel*CT',
+
+            # Variables importantes (se validarán pero pueden omitirse)
+            'sexo': 'Sexo',
             'grupo_prof': 'Grupo prof.',
             'clasif_interna': 'Clasif. interna',
             'valoracion_puesto': 'Valoración puesto',
@@ -205,9 +231,16 @@ class ValidadorMapeoTriodos(ValidadorMapeo):
             'departamento': 'Departamento',
             'jornada_pct': '% Jornada',
             'reduccion_pct': '% Reducción',
-            'salario_base_efectivo': 'A154-Salario base de nivel*CT',
             'bruto_pagado': 'Bruto pagado'
         }
+
+        # Lista de variables que son OBLIGATORIAS (no se pueden omitir)
+        self.variables_obligatorias = [
+            'num_personal',
+            'fecha_inicio_sit',
+            'fecha_fin_sit',
+            'salario_base_efectivo'
+        ]
 
         # Columnas de configuración de complementos
         self.columnas_config_complementos = {
