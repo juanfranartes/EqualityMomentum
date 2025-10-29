@@ -302,9 +302,10 @@ def main():
         if archivo_protegido:
             password = st.text_input(
                 "Contraseña del archivo:",
-                value="Triodos2025" if tipo_archivo == "Triodos" else "",
+                value="",
                 type="password",
-                help="Contraseña para desbloquear el archivo Excel"
+                help="Introduce la contraseña para desbloquear el archivo Excel",
+                placeholder="Introduce la contraseña..."
             )
         else:
             password = None
@@ -348,6 +349,11 @@ def main():
             }
 
             if st.button(texto_boton[accion], type="primary"):
+                # Validar que se haya introducido contraseña si el archivo está protegido
+                if archivo_protegido and not password:
+                    st.error("❌ Por favor, introduce la contraseña del archivo antes de procesar.")
+                    st.stop()
+
                 with st.spinner(f"{accion}... Esto puede tardar unos segundos."):
                     try:
                         # Leer archivo como bytes
@@ -369,10 +375,13 @@ def main():
                                     if tipo_archivo == "Triodos":
                                         st.info("📋 Usando procesador de Triodos Bank...")
                                         procesador = ProcesadorTriodos()
+                                        # Configurar la contraseña si se proporcionó
+                                        if password:
+                                            procesador.password = password
                                     else:
                                         st.info("📋 Usando procesador general...")
                                         procesador = ProcesadorRegistroRetributivo()
-                                    
+
                                     # Procesar el archivo
                                     resultado = procesador.procesar_archivo(tmp_path)
                                     

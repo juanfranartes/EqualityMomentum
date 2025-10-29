@@ -55,8 +55,8 @@ warnings.filterwarnings('ignore', category=pd.errors.SettingWithCopyWarning)
 warnings.filterwarnings('ignore', category=RuntimeWarning)
 logging.captureWarnings(True)
 
-# Contraseña del archivo Triodos
-TRIODOS_PASSWORD = 'Triodos2025'
+# Contraseña del archivo Triodos (debe ser proporcionada por el usuario)
+TRIODOS_PASSWORD = None
 
 # ==================== FUNCIONES AUXILIARES ====================
 
@@ -164,6 +164,12 @@ class ProcesadorTriodos:
 
     def abrir_archivo_protegido(self, ruta_archivo):
         """Abre un archivo Excel protegido con contraseña"""
+        # Validar que se haya configurado una contraseña
+        if not self.password:
+            error_msg = "No se ha proporcionado una contraseña para el archivo protegido"
+            log(error_msg, 'ERROR')
+            raise ValueError(error_msg)
+
         try:
             log("Desencriptando archivo protegido...", 'PROCESO')
             with open(ruta_archivo, 'rb') as f:
@@ -177,8 +183,12 @@ class ProcesadorTriodos:
             log("Archivo desencriptado correctamente", 'OK')
             return decrypted
         except Exception as e:
-            log(f"Error al desencriptar archivo: {str(e)}", 'ERROR')
-            raise
+            # Mejorar mensaje de error para contraseña incorrecta
+            error_msg = str(e)
+            if "password" in error_msg.lower() or "decrypt" in error_msg.lower():
+                error_msg = "Contraseña incorrecta. Por favor, verifica la contraseña e inténtalo de nuevo."
+            log(f"Error al desencriptar archivo: {error_msg}", 'ERROR')
+            raise ValueError(error_msg)
 
     def calcular_meses_trabajados(self, fecha_inicio, fecha_fin):
         """
