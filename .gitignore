@@ -34,9 +34,10 @@ Instaladores/
 *.exe
 *.msi
 
-# Documentación interna (solo incluir .docx)
-00_DOCUMENTACION/*
-!00_DOCUMENTACION/**/*.docx
+# Documentación interna (solo incluir archivo específico)
+00_DOCUMENTACION/
+!00_DOCUMENTACION/Registro retributivo/
+!00_DOCUMENTACION/Registro retributivo/Reg Retributivo  NUEVA PLANTILLA.docx
 
 # Datos sensibles
 01_DATOS_SIN_PROCESAR/*.xlsx
