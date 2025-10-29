@@ -21,6 +21,15 @@ if str(scripts_path) not in sys.path:
 
 # Importar módulos de procesamiento desde 04_SCRIPTS
 sys.path.insert(0, str(scripts_path))
+
+# IMPORTANTE: Recargar módulos para asegurar que se usan las versiones más recientes
+# Limpiar caché de módulos si existen
+modulos_a_recargar = ['procesar_datos', 'procesar_datos_triodos', 'generar_informe_optimizado']
+for modulo_nombre in modulos_a_recargar:
+    if modulo_nombre in sys.modules:
+        del sys.modules[modulo_nombre]
+
+# Ahora importar las versiones frescas
 from procesar_datos import ProcesadorRegistroRetributivo
 from procesar_datos_triodos import ProcesadorTriodos
 from generar_informe_optimizado import GeneradorInformeOptimizado

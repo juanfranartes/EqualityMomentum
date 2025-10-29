@@ -1,7 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(\"C:\\Users\\juanf\\AppData\\Local\\Programs\\Python\\Python312\\python.exe\" procesar_datos.py)"
+      "Bash(\"C:\\Users\\juanf\\AppData\\Local\\Programs\\Python\\Python312\\python.exe\" verificar_ultimo_resultado.py)"
     ],
     "deny": [],
     "ask": []
