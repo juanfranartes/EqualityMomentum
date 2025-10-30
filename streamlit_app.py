@@ -606,6 +606,10 @@ def main():
                         st.error("❌ Por favor, introduce la contraseña del archivo antes de procesar.")
                         st.stop()
 
+                    # Leer archivo como bytes
+                    archivo_bytes = archivo_subido.read()
+                    archivo_subido.seek(0)  # Reset para poder leerlo después
+
                     with st.spinner(f"{accion}... Esto puede tardar unos segundos."):
                         try:
                             excel_procesado = None
