@@ -206,13 +206,13 @@ def crear_carpetas_necesarias():
         carpeta.mkdir(exist_ok=True)
 
 
-def validar_y_mapear_archivo(archivo_bytes, tipo_archivo, password=None):
+def detectar_campos_faltantes(archivo_bytes, tipo_archivo, password=None):
     """
-    Valida el archivo y solicita mapeo manual si es necesario.
+    Solo detecta campos faltantes, NO muestra UI ni aplica mapeo.
 
     Returns:
-        Tuple (validador_con_mapeo, error_mensaje)
-        Si hay error, validador_con_mapeo será None
+        Tuple (validador, info_deteccion, error_mensaje)
+        info_deteccion contiene toda la info sobre campos faltantes
     """
     try:
         # Guardar temporalmente el archivo para análisis
@@ -237,37 +237,8 @@ def validar_y_mapear_archivo(archivo_bytes, tipo_archivo, password=None):
                 validador = ValidadorMapeoGeneral()
                 excel_file = pd.ExcelFile(tmp_path)
 
-            # PASO 1: Validar hojas
+            # PASO 1: Validar hojas (SOLO detectar, NO mostrar UI)
             resultado_hojas = validador.validar_hojas(excel_file, validador.hojas_requeridas)
-
-            if resultado_hojas['faltantes']:
-                st.warning(f"⚠️ Se encontraron {len(resultado_hojas['faltantes'])} hojas faltantes")
-
-                st.markdown("### 🗂️ Mapeo de Hojas")
-                st.info("Las siguientes hojas no se encontraron con el nombre esperado. Por favor, selecciona manualmente qué hoja corresponde a cada una:")
-
-                mapeo_hojas_usuario = {}
-                for hoja_faltante in resultado_hojas['faltantes']:
-                    # Las hojas siempre son obligatorias
-                    st.markdown(f"**Hoja esperada:** `{hoja_faltante}` ⚠️ **OBLIGATORIA**")
-
-                    opciones_disponibles = ["[Selecciona una opción]"] + resultado_hojas['disponibles']
-
-                    seleccion = st.selectbox(
-                        f"Selecciona la hoja real para '{hoja_faltante}':",
-                        options=opciones_disponibles,
-                        index=0,
-                        key=f"hoja_{hoja_faltante}",
-                        help=f"Selecciona qué hoja de tu archivo corresponde a '{hoja_faltante}'"
-                    )
-
-                    if seleccion != "[Selecciona una opción]":
-                        mapeo_hojas_usuario[hoja_faltante] = seleccion
-
-                    st.markdown("---")
-
-                # NO aplicar mapeo aquí, solo guardarlo para después
-                # validador.aplicar_mapeo_hojas(mapeo_hojas_usuario)
 
             # PASO 2: Validar variables de la hoja principal (BASE GENERAL)
             nombre_hoja_principal = validador.obtener_nombre_hoja('BASE GENERAL')
@@ -284,53 +255,17 @@ def validar_y_mapear_archivo(archivo_bytes, tipo_archivo, password=None):
                 df.columns = df.columns.str.strip()
 
             except Exception as e:
-                return None, f"Error al leer la hoja '{nombre_hoja_principal}': {str(e)}"
+                return None, None, f"Error al leer la hoja '{nombre_hoja_principal}': {str(e)}"
 
             resultado_variables = validador.validar_variables(df, validador.variables_criticas)
 
-            if resultado_variables['faltantes']:
-                st.warning(f"⚠️ Se encontraron {len(resultado_variables['faltantes'])} variables faltantes")
-
-                st.markdown("### 📊 Mapeo de Variables")
-                st.info("Las siguientes columnas no se encontraron con el nombre esperado. Por favor, selecciona manualmente qué columna corresponde a cada una:")
-
-                mapeo_variables_usuario = {}
-                for clave_interna, nombre_esperado in resultado_variables['faltantes'].items():
-                    # Verificar si es obligatoria
-                    es_obligatoria = clave_interna in validador.variables_obligatorias
-                    etiqueta_obligatoria = " ⚠️ **OBLIGATORIA**" if es_obligatoria else " (opcional)"
-
-                    st.markdown(f"**Variable esperada:** `{nombre_esperado}`{etiqueta_obligatoria}")
-
-                    if es_obligatoria:
-                        opciones_disponibles = ["[Selecciona una opción]"] + resultado_variables['disponibles']
-                        index_default = 0
-                    else:
-                        opciones_disponibles = ["⛔ No mapear (omitir)"] + resultado_variables['disponibles']
-                        index_default = 0
-
-                    seleccion = st.selectbox(
-                        f"Selecciona la columna real para '{nombre_esperado}':",
-                        options=opciones_disponibles,
-                        index=index_default,
-                        key=f"var_{clave_interna}",
-                        help=f"Selecciona qué columna de tu archivo corresponde a '{nombre_esperado}'"
-                    )
-
-                    if seleccion not in ["⛔ No mapear (omitir)", "[Selecciona una opción]"]:
-                        mapeo_variables_usuario[clave_interna] = seleccion
-
-                    st.markdown("---")
-
-                # NO aplicar mapeo aquí, solo guardarlo para después
-                # validador.aplicar_mapeo_variables(mapeo_variables_usuario)
-
-            # PASO 3: Validar variables de hojas de complementos
+            # PASO 3: Validar variables de hojas de complementos (SOLO detectar)
+            resultados_complementos = {}
             for nombre_hoja_config in ['COMPLEMENTOS SALARIALES', 'COMPLEMENTOS EXTRASALARIALES']:
                 nombre_hoja_real = validador.obtener_nombre_hoja(nombre_hoja_config)
 
                 if nombre_hoja_real not in excel_file.sheet_names:
-                    continue  # Esta hoja no fue mapeada, omitir
+                    continue
 
                 try:
                     if tipo_archivo == "Triodos" and password:
@@ -340,93 +275,20 @@ def validar_y_mapear_archivo(archivo_bytes, tipo_archivo, password=None):
                         df_comp = pd.read_excel(tmp_path, sheet_name=nombre_hoja_real)
 
                     df_comp.columns = df_comp.columns.str.strip()
-
                     resultado_vars_comp = validador.validar_variables(df_comp, validador.columnas_config_complementos)
-
-                    if resultado_vars_comp['faltantes']:
-                        st.warning(f"⚠️ Variables faltantes en '{nombre_hoja_config}'")
-
-                        st.markdown(f"### 📋 Mapeo de Variables de '{nombre_hoja_config}'")
-
-                        mapeo_comp_usuario = {}
-                        for clave_interna, nombre_esperado in resultado_vars_comp['faltantes'].items():
-                            # Las columnas de configuración de complementos son OBLIGATORIAS
-                            st.markdown(f"**Variable esperada:** `{nombre_esperado}` en hoja `{nombre_hoja_config}` ⚠️ **OBLIGATORIA**")
-
-                            opciones_disponibles = ["[Selecciona una opción]"] + resultado_vars_comp['disponibles']
-
-                            seleccion = st.selectbox(
-                                f"Selecciona la columna real para '{nombre_esperado}':",
-                                options=opciones_disponibles,
-                                index=0,
-                                key=f"comp_{nombre_hoja_config}_{clave_interna}",
-                                help=f"Columna que corresponde a '{nombre_esperado}' en la hoja '{nombre_hoja_config}'"
-                            )
-
-                            if seleccion != "[Selecciona una opción]":
-                                mapeo_comp_usuario[clave_interna] = seleccion
-
-                            st.markdown("---")
-
-                        # NO aplicar mapeo aquí, solo guardarlo para después
-                        # for clave, valor in mapeo_comp_usuario.items():
-                        #     validador.columnas_config_complementos[clave] = valor
+                    resultados_complementos[nombre_hoja_config] = resultado_vars_comp
 
                 except Exception as e:
-                    st.warning(f"⚠️ Error al leer la hoja '{nombre_hoja_real}': {str(e)}")
+                    pass
 
-            # Si hay campos faltantes, mostrar botón de confirmación y detener
-            hay_campos_faltantes = (
-                bool(resultado_hojas.get('faltantes')) or
-                bool(resultado_variables.get('faltantes')) or
-                any(r.get('faltantes') for r in [resultado_vars_comp for resultado_vars_comp in locals().get('resultado_vars_comp', {}).values()])
-            )
+            # Retornar validador e información de detección
+            info_deteccion = {
+                'hojas': resultado_hojas,
+                'variables': resultado_variables,
+                'complementos': resultados_complementos
+            }
 
-            if hay_campos_faltantes:
-                st.markdown("---")
-                st.info("⚠️ Revisa las selecciones arriba. Cuando hayas terminado de mapear todos los campos, presiona el botón 'Confirmar Mapeo'.")
-
-                col1, col2, col3 = st.columns([1, 2, 1])
-                with col2:
-                    if st.button("✅ Confirmar Mapeo", type="primary", use_container_width=True, key="confirmar_mapeo"):
-                        # El botón fue presionado, ahora SÍ aplicar todos los mapeos
-
-                        # Aplicar mapeo de hojas si hay
-                        if 'mapeo_hojas_usuario' in locals() and mapeo_hojas_usuario:
-                            validador.aplicar_mapeo_hojas(mapeo_hojas_usuario)
-
-                            # Verificar hojas obligatorias
-                            hojas_criticas_sin_mapear = [h for h in resultado_hojas['faltantes'] if h not in mapeo_hojas_usuario]
-                            if hojas_criticas_sin_mapear:
-                                st.error(f"Las siguientes hojas son obligatorias y no fueron mapeadas: {', '.join(hojas_criticas_sin_mapear)}")
-                                st.stop()
-
-                        # Aplicar mapeo de variables si hay
-                        if 'mapeo_variables_usuario' in locals() and mapeo_variables_usuario:
-                            validador.aplicar_mapeo_variables(mapeo_variables_usuario)
-
-                            # Verificar variables obligatorias
-                            variables_obligatorias_sin_mapear = [
-                                clave for clave in validador.variables_obligatorias
-                                if clave in resultado_variables['faltantes'] and clave not in mapeo_variables_usuario
-                            ]
-                            if variables_obligatorias_sin_mapear:
-                                nombres_esperados = [validador.variables_criticas[c] for c in variables_obligatorias_sin_mapear]
-                                st.error(f"Las siguientes variables son obligatorias y no fueron mapeadas: {', '.join(nombres_esperados)}")
-                                st.stop()
-
-                        # Aplicar mapeo de complementos si hay
-                        if 'mapeo_comp_usuario' in locals() and mapeo_comp_usuario:
-                            for clave, valor in mapeo_comp_usuario.items():
-                                validador.columnas_config_complementos[clave] = valor
-
-                        # Ahora sí, continuar con el retorno
-                        pass
-                    else:
-                        # Botón no presionado, detener ejecución aquí
-                        st.stop()
-
-            return validador, None
+            return validador, info_deteccion, None
 
         finally:
             # Limpiar archivo temporal
@@ -434,7 +296,7 @@ def validar_y_mapear_archivo(archivo_bytes, tipo_archivo, password=None):
                 tmp_path.unlink()
 
     except Exception as e:
-        return None, f"Error durante la validación: {str(e)}"
+        return None, None, f"Error durante la validación: {str(e)}"
 
 
 def main():
@@ -580,29 +442,125 @@ def main():
 
         # PASO 1: Validación y mapeo (si no se ha hecho)
         if 'validacion_completa' not in st.session_state:
-            col1, col2, col3 = st.columns([1, 2, 1])
-            with col2:
-                if st.button("🔍 Validar Archivo y Mapear Campos", type="secondary", use_container_width=True):
-                    # Validar que se haya introducido contraseña si el archivo está protegido
-                    if archivo_protegido and not password:
-                        st.error("❌ Por favor, introduce la contraseña del archivo antes de validar.")
-                        st.stop()
+            # Sub-paso: Iniciar detección
+            if 'info_deteccion' not in st.session_state:
+                col1, col2, col3 = st.columns([1, 2, 1])
+                with col2:
+                    if st.button("🔍 Validar Archivo y Mapear Campos", type="secondary", use_container_width=True):
+                        # Validar que se haya introducido contraseña si el archivo está protegido
+                        if archivo_protegido and not password:
+                            st.error("❌ Por favor, introduce la contraseña del archivo antes de validar.")
+                            st.stop()
 
-                    # Leer archivo como bytes
-                    archivo_bytes = archivo_subido.read()
-                    archivo_subido.seek(0)  # Reset para poder leerlo después
+                        # Leer archivo como bytes
+                        archivo_bytes = archivo_subido.read()
+                        archivo_subido.seek(0)  # Reset para poder leerlo después
 
-                    # Validar y mapear
-                    validador, error = validar_y_mapear_archivo(archivo_bytes, tipo_archivo, password)
+                        # SOLO detectar, NO mostrar UI
+                        validador, info_deteccion, error = detectar_campos_faltantes(archivo_bytes, tipo_archivo, password)
 
-                    if error:
-                        st.error(f"❌ Error: {error}")
-                        st.stop()
+                        if error:
+                            st.error(f"❌ Error: {error}")
+                            st.stop()
 
-                    if validador:
+                        # Guardar en session_state para mostrar UI después
+                        st.session_state['validador_temp'] = validador
+                        st.session_state['info_deteccion'] = info_deteccion
+                        st.rerun()
+
+            # Sub-paso: Mostrar UI de mapeo si hay info de detección
+            if 'info_deteccion' in st.session_state:
+                info = st.session_state['info_deteccion']
+                validador = st.session_state['validador_temp']
+
+                resultado_hojas = info['hojas']
+                resultado_variables = info['variables']
+                resultados_complementos = info['complementos']
+
+                # UI para hojas faltantes
+                if resultado_hojas['faltantes']:
+                    st.warning(f"⚠️ Se encontraron {len(resultado_hojas['faltantes'])} hojas faltantes")
+                    st.markdown("### 🗂️ Mapeo de Hojas")
+
+                    for hoja_faltante in resultado_hojas['faltantes']:
+                        st.markdown(f"**Hoja esperada:** `{hoja_faltante}` ⚠️ **OBLIGATORIA**")
+                        st.selectbox(
+                            f"Selecciona la hoja real para '{hoja_faltante}':",
+                            options=["[Selecciona una opción]"] + resultado_hojas['disponibles'],
+                            key=f"mapeo_hoja_{hoja_faltante}"
+                        )
+                        st.markdown("---")
+
+                # UI para variables faltantes
+                if resultado_variables['faltantes']:
+                    st.warning(f"⚠️ Se encontraron {len(resultado_variables['faltantes'])} variables faltantes")
+                    st.markdown("### 📊 Mapeo de Variables")
+
+                    for clave_interna, nombre_esperado in resultado_variables['faltantes'].items():
+                        es_obligatoria = clave_interna in validador.variables_obligatorias
+                        etiqueta = " ⚠️ **OBLIGATORIA**" if es_obligatoria else " (opcional)"
+                        st.markdown(f"**Variable esperada:** `{nombre_esperado}`{etiqueta}")
+
+                        if es_obligatoria:
+                            opciones = ["[Selecciona una opción]"] + resultado_variables['disponibles']
+                        else:
+                            opciones = ["⛔ No mapear (omitir)"] + resultado_variables['disponibles']
+
+                        st.selectbox(
+                            f"Selecciona la columna real para '{nombre_esperado}':",
+                            options=opciones,
+                            key=f"mapeo_var_{clave_interna}"
+                        )
+                        st.markdown("---")
+
+                # Botón para confirmar mapeo
+                st.markdown("---")
+                st.info("⚠️ Revisa las selecciones arriba. Cuando hayas terminado, presiona 'Confirmar Mapeo'.")
+
+                col1, col2, col3 = st.columns([1, 2, 1])
+                with col2:
+                    if st.button("✅ Confirmar Mapeo", type="primary", use_container_width=True):
+                        # Aplicar mapeos desde session_state
+                        # Hojas
+                        if resultado_hojas['faltantes']:
+                            mapeo_hojas = {}
+                            for hoja in resultado_hojas['faltantes']:
+                                sel = st.session_state.get(f"mapeo_hoja_{hoja}")
+                                if sel and sel != "[Selecciona una opción]":
+                                    mapeo_hojas[hoja] = sel
+
+                            if len(mapeo_hojas) < len(resultado_hojas['faltantes']):
+                                st.error("⚠️ Debes mapear todas las hojas obligatorias")
+                                st.stop()
+
+                            validador.aplicar_mapeo_hojas(mapeo_hojas)
+
+                        # Variables
+                        if resultado_variables['faltantes']:
+                            mapeo_vars = {}
+                            for clave in resultado_variables['faltantes'].keys():
+                                sel = st.session_state.get(f"mapeo_var_{clave}")
+                                if sel and sel not in ["[Selecciona una opción]", "⛔ No mapear (omitir)"]:
+                                    mapeo_vars[clave] = sel
+
+                            # Verificar obligatorias
+                            obligatorias_faltantes = [
+                                clave for clave in validador.variables_obligatorias
+                                if clave in resultado_variables['faltantes'] and clave not in mapeo_vars
+                            ]
+                            if obligatorias_faltantes:
+                                nombres = [validador.variables_criticas[c] for c in obligatorias_faltantes]
+                                st.error(f"⚠️ Debes mapear las variables obligatorias: {', '.join(nombres)}")
+                                st.stop()
+
+                            validador.aplicar_mapeo_variables(mapeo_vars)
+
+                        # Guardar y continuar
                         st.session_state['validador'] = validador
                         st.session_state['validacion_completa'] = True
-                        st.success("✅ Validación completada. Revisa el mapeo y luego presiona 'Procesar'.")
+                        st.session_state.pop('info_deteccion', None)
+                        st.session_state.pop('validador_temp', None)
+                        st.success("✅ Mapeo confirmado!")
                         st.rerun()
 
         # PASO 2: Procesamiento (solo si la validación está completa)
