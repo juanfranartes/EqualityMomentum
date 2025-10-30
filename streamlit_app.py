@@ -266,13 +266,8 @@ def validar_y_mapear_archivo(archivo_bytes, tipo_archivo, password=None):
 
                     st.markdown("---")
 
-                # Aplicar mapeo de hojas
-                validador.aplicar_mapeo_hojas(mapeo_hojas_usuario)
-
-                # Verificar que se hayan mapeado todas las hojas críticas
-                hojas_criticas_sin_mapear = [h for h in resultado_hojas['faltantes'] if h not in mapeo_hojas_usuario]
-                if hojas_criticas_sin_mapear:
-                    return None, f"Las siguientes hojas son obligatorias y no fueron mapeadas: {', '.join(hojas_criticas_sin_mapear)}"
+                # NO aplicar mapeo aquí, solo guardarlo para después
+                # validador.aplicar_mapeo_hojas(mapeo_hojas_usuario)
 
             # PASO 2: Validar variables de la hoja principal (BASE GENERAL)
             nombre_hoja_principal = validador.obtener_nombre_hoja('BASE GENERAL')
@@ -327,18 +322,8 @@ def validar_y_mapear_archivo(archivo_bytes, tipo_archivo, password=None):
 
                     st.markdown("---")
 
-                # Aplicar mapeo de variables
-                validador.aplicar_mapeo_variables(mapeo_variables_usuario)
-
-                # Verificar que se hayan mapeado todas las variables obligatorias
-                variables_obligatorias_sin_mapear = [
-                    clave for clave in validador.variables_obligatorias
-                    if clave in resultado_variables['faltantes'] and clave not in mapeo_variables_usuario
-                ]
-
-                if variables_obligatorias_sin_mapear:
-                    nombres_esperados = [validador.variables_criticas[c] for c in variables_obligatorias_sin_mapear]
-                    return None, f"Las siguientes variables son obligatorias y no fueron mapeadas: {', '.join(nombres_esperados)}"
+                # NO aplicar mapeo aquí, solo guardarlo para después
+                # validador.aplicar_mapeo_variables(mapeo_variables_usuario)
 
             # PASO 3: Validar variables de hojas de complementos
             for nombre_hoja_config in ['COMPLEMENTOS SALARIALES', 'COMPLEMENTOS EXTRASALARIALES']:
@@ -383,10 +368,9 @@ def validar_y_mapear_archivo(archivo_bytes, tipo_archivo, password=None):
 
                             st.markdown("---")
 
-                        # Aplicar mapeo de variables de complementos
-                        # Nota: Estas variables se deben aplicar directamente en las columnas_config_complementos del validador
-                        for clave, valor in mapeo_comp_usuario.items():
-                            validador.columnas_config_complementos[clave] = valor
+                        # NO aplicar mapeo aquí, solo guardarlo para después
+                        # for clave, valor in mapeo_comp_usuario.items():
+                        #     validador.columnas_config_complementos[clave] = valor
 
                 except Exception as e:
                     st.warning(f"⚠️ Error al leer la hoja '{nombre_hoja_real}': {str(e)}")
@@ -405,7 +389,38 @@ def validar_y_mapear_archivo(archivo_bytes, tipo_archivo, password=None):
                 col1, col2, col3 = st.columns([1, 2, 1])
                 with col2:
                     if st.button("✅ Confirmar Mapeo", type="primary", use_container_width=True, key="confirmar_mapeo"):
-                        # El botón fue presionado, continuar con el retorno
+                        # El botón fue presionado, ahora SÍ aplicar todos los mapeos
+
+                        # Aplicar mapeo de hojas si hay
+                        if 'mapeo_hojas_usuario' in locals() and mapeo_hojas_usuario:
+                            validador.aplicar_mapeo_hojas(mapeo_hojas_usuario)
+
+                            # Verificar hojas obligatorias
+                            hojas_criticas_sin_mapear = [h for h in resultado_hojas['faltantes'] if h not in mapeo_hojas_usuario]
+                            if hojas_criticas_sin_mapear:
+                                st.error(f"Las siguientes hojas son obligatorias y no fueron mapeadas: {', '.join(hojas_criticas_sin_mapear)}")
+                                st.stop()
+
+                        # Aplicar mapeo de variables si hay
+                        if 'mapeo_variables_usuario' in locals() and mapeo_variables_usuario:
+                            validador.aplicar_mapeo_variables(mapeo_variables_usuario)
+
+                            # Verificar variables obligatorias
+                            variables_obligatorias_sin_mapear = [
+                                clave for clave in validador.variables_obligatorias
+                                if clave in resultado_variables['faltantes'] and clave not in mapeo_variables_usuario
+                            ]
+                            if variables_obligatorias_sin_mapear:
+                                nombres_esperados = [validador.variables_criticas[c] for c in variables_obligatorias_sin_mapear]
+                                st.error(f"Las siguientes variables son obligatorias y no fueron mapeadas: {', '.join(nombres_esperados)}")
+                                st.stop()
+
+                        # Aplicar mapeo de complementos si hay
+                        if 'mapeo_comp_usuario' in locals() and mapeo_comp_usuario:
+                            for clave, valor in mapeo_comp_usuario.items():
+                                validador.columnas_config_complementos[clave] = valor
+
+                        # Ahora sí, continuar con el retorno
                         pass
                     else:
                         # Botón no presionado, detener ejecución aquí
